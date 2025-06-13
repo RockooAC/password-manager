@@ -60,6 +60,20 @@ export class CryptoManager {
       }
     }
   
+    async exportKeyToJWK(key) {
+      return await crypto.subtle.exportKey('jwk', key);
+    }
+  
+    async importKeyFromJWK(jwk) {
+      return await crypto.subtle.importKey(
+        'jwk',
+        jwk,
+        this.algorithm,
+        true,
+        ['encrypt', 'decrypt']
+      );
+    }
+  
     generatePassword(length = 16, options = {}) {
       const lowercase = 'abcdefghijklmnopqrstuvwxyz';
       const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -71,6 +85,8 @@ export class CryptoManager {
       if (options.uppercase !== false) charset += uppercase;
       if (options.numbers !== false) charset += numbers;
       if (options.symbols !== false) charset += symbols;
+      
+      if (charset === '') charset = lowercase + uppercase + numbers;
       
       const randomBytes = crypto.getRandomValues(new Uint8Array(length));
       return Array.from(randomBytes)

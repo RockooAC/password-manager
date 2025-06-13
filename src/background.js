@@ -6,6 +6,28 @@ const cryptoManager = new CryptoManager();
 const storageManager = new StorageManager();
 const authManager = new AuthManager(cryptoManager, storageManager);
 
+// Inicjalizacja przy starcie
+(async function initializeAuth() {
+  try {
+    await storageManager.initDB();
+    
+    // Sprawdź czy klucz sesji jest zapisany
+    const sessionData = await chrome.storage.session.get('securepass_session');
+    if (sessionData.securepass_session) {
+      try {
+        await authManager.restoreSession(sessionData.securepass_session);
+        console.log('Session restored successfully');
+      } catch (error) {
+        console.error('Failed to restore session:', error);
+        await chrome.storage.session.remove('securepass_session');
+      }
+    }
+  } catch (error) {
+    console.error('Initialization error:', error);
+  }
+})();
+
+// Obsługuj komunikaty
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Background received message:', request.action);
   
@@ -77,6 +99,11 @@ async function handleCheckVaultExists(sendResponse) {
 async function handleInitializeVault(data, sendResponse) {
   try {
     await authManager.initializeVault(data.password);
+    
+    // Zapisz sesję
+    const sessionData = await authManager.exportSession();
+    await chrome.storage.session.set({ 'securepass_session': sessionData });
+    
     sendResponse({ success: true });
   } catch (error) {
     sendResponse({ error: error.message });
@@ -86,6 +113,11 @@ async function handleInitializeVault(data, sendResponse) {
 async function handleUnlockVault(data, sendResponse) {
   try {
     await authManager.unlockVault(data.password);
+    
+    // Zapisz sesję
+    const sessionData = await authManager.exportSession();
+    await chrome.storage.session.set({ 'securepass_session': sessionData });
+    
     sendResponse({ success: true });
   } catch (error) {
     sendResponse({ error: error.message });
@@ -95,6 +127,7 @@ async function handleUnlockVault(data, sendResponse) {
 async function handleLockVault(sendResponse) {
   try {
     authManager.lockVault();
+    await chrome.storage.session.remove('securepass_session');
     sendResponse({ success: true });
   } catch (error) {
     sendResponse({ error: error.message });
@@ -119,13 +152,15 @@ async function handleSaveEntry(data, sendResponse) {
     });
     
     const entry = {
-      id: data.id || Date.now() + Math.random(),
-      ...encrypted,
-      url: data.url,
-      created: data.created || Date.now(),
-      modified: Date.now()
-    };
-    
+        id: data.id || `entry_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        iv: encrypted.iv,
+        ciphertext: encrypted.ciphertext,
+        url: data.url,
+        created: data.created || Date.now(),
+        modified: Date.now()
+      };
+    console.log('[SAVE_ENTRY]', 'ID:', entry.id, 'is update:', !!data.id);
+
     await storageManager.saveEntry(entry);
     authManager.resetLockTimer();
     
@@ -195,6 +230,7 @@ async function handleGeneratePassword(data, sendResponse) {
 async function handleResetVault(sendResponse) {
   try {
     await authManager.resetVault();
+    await chrome.storage.session.remove('securepass_session');
     sendResponse({ success: true });
   } catch (error) {
     sendResponse({ error: error.message });

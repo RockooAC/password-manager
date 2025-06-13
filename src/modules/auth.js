@@ -13,6 +13,7 @@ export class AuthManager {
         const config = await this.storage.getVaultConfig();
         return !!config;
       } catch (error) {
+        console.error('Error checking vault existence:', error);
         return false;
       }
     }
@@ -63,6 +64,8 @@ export class AuthManager {
         const testEntry = await this.storage.getEntry('test_entry');
         if (testEntry) {
           await this.crypto.decryptData(key, testEntry.iv, testEntry.ciphertext);
+        } else {
+          throw new Error('Brak wpisu testowego, sejf może być uszkodzony');
         }
         
         this.currentKey = key;
@@ -79,16 +82,14 @@ export class AuthManager {
     lockVault() {
       this.currentKey = null;
       this.isLocked = true;
-      if (this.lockTimer) {
-        clearTimeout(this.lockTimer);
-        this.lockTimer = null;
-      }
+      this.clearLockTimer();
       
       chrome.runtime.sendMessage({ action: 'VAULT_LOCKED' }).catch(() => {});
     }
   
     startLockTimer() {
       this.clearLockTimer();
+      
       this.lockTimer = setTimeout(() => {
         this.lockVault();
       }, this.lockTimeout);
@@ -126,6 +127,52 @@ export class AuthManager {
       } catch (error) {
         console.error('Error resetting vault:', error);
         throw new Error('Nie można zresetować sejfu');
+      }
+    }
+    
+    async exportSession() {
+      if (!this.isUnlocked()) {
+        return null;
+      }
+      
+      try {
+        const keyJwk = await this.crypto.exportKeyToJWK(this.currentKey);
+        const config = await this.storage.getVaultConfig();
+        
+        return {
+          keyJwk,
+          config,
+          timestamp: Date.now()
+        };
+      } catch (error) {
+        console.error('Error exporting session:', error);
+        return null;
+      }
+    }
+    
+    async restoreSession(sessionData) {
+      try {
+        if (!sessionData || !sessionData.keyJwk || !sessionData.config) {
+          throw new Error('Nieprawidłowe dane sesji');
+        }
+        
+        const key = await this.crypto.importKeyFromJWK(sessionData.keyJwk);
+        
+        const testEntry = await this.storage.getEntry('test_entry');
+        if (testEntry) {
+          await this.crypto.decryptData(key, testEntry.iv, testEntry.ciphertext);
+        } else {
+          throw new Error('Brak wpisu testowego, sesja nie może być przywrócona');
+        }
+        
+        this.currentKey = key;
+        this.isLocked = false;
+        this.startLockTimer();
+        
+        return true;
+      } catch (error) {
+        console.error('Error restoring session:', error);
+        throw new Error('Nie można przywrócić sesji');
       }
     }
   }

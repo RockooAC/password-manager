@@ -1,12 +1,23 @@
-import { CryptoManager } from '../modules/crypto.js';
-import { StorageManager } from '../modules/storage.js';
-import { AuthManager } from '../modules/auth.js';
-
 // Global state
 let currentScreen = 'loading-screen';
 let currentEntryId = null;
 let entries = [];
 let currentDetailEntry = null;
+
+// 🛠 Dodane funkcje: isVisible i triggerInputEvent
+function isVisible(element) {
+    return !!element &&
+           !!(element.offsetWidth || element.offsetHeight || element.getClientRects().length) &&
+           window.getComputedStyle(element).visibility !== 'hidden' &&
+           window.getComputedStyle(element).display !== 'none';
+  }
+  
+  function triggerInputEvent(element) {
+    const inputEvent = new Event('input', { bubbles: true });
+    element.dispatchEvent(inputEvent);
+    const changeEvent = new Event('change', { bubbles: true });
+    element.dispatchEvent(changeEvent);
+  }
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', async () => {
@@ -27,7 +38,13 @@ async function initializeApp() {
     
     if (response.success) {
       if (response.exists) {
-        showScreen('login-screen');
+        const statusResponse = await chrome.runtime.sendMessage({ action: 'IS_UNLOCKED' });
+        if (statusResponse.success && statusResponse.isUnlocked) {
+          await loadEntries();
+          showScreen('main-screen');
+        } else {
+          showScreen('login-screen');
+        }
       } else {
         showScreen('welcome-screen');
       }
@@ -43,110 +60,70 @@ async function initializeApp() {
 
 function setupEventListeners() {
   // Welcome screen
-  const createVaultBtn = document.getElementById('create-vault-btn');
-  if (createVaultBtn) {
-    createVaultBtn.addEventListener('click', () => {
-      showScreen('register-screen');
-    });
-  }
+  document.getElementById('create-vault-btn')?.addEventListener('click', () => {
+    showScreen('register-screen');
+  });
   
   // Registration screen
-  const backToWelcome = document.getElementById('back-to-welcome');
-  if (backToWelcome) {
-    backToWelcome.addEventListener('click', () => {
-      showScreen('welcome-screen');
-    });
-  }
+  document.getElementById('back-to-welcome')?.addEventListener('click', () => {
+    showScreen('welcome-screen');
+  });
   
-  const registerForm = document.getElementById('register-form');
-  if (registerForm) {
-    registerForm.addEventListener('submit', handleRegistration);
-  }
+  document.getElementById('register-form')?.addEventListener('submit', handleRegistration);
   
   // Password strength checking
-  const masterPassword = document.getElementById('master-password');
-  if (masterPassword) {
-    masterPassword.addEventListener('input', checkPasswordStrength);
-  }
-  
-  const confirmPassword = document.getElementById('confirm-password');
-  if (confirmPassword) {
-    confirmPassword.addEventListener('input', checkPasswordMatch);
-  }
+  document.getElementById('master-password')?.addEventListener('input', checkPasswordStrength);
+  document.getElementById('confirm-password')?.addEventListener('input', checkPasswordMatch);
   
   // Login screen
-  const loginForm = document.getElementById('login-form');
-  if (loginForm) {
-    loginForm.addEventListener('submit', handleLogin);
-  }
-  
-  const resetVaultBtn = document.getElementById('reset-vault-btn');
-  if (resetVaultBtn) {
-    resetVaultBtn.addEventListener('click', handleResetVault);
-  }
+  document.getElementById('login-form')?.addEventListener('submit', handleLogin);
+  document.getElementById('reset-vault-btn')?.addEventListener('click', handleResetVault);
   
   // Main screen
-  const logoutVaultBtn = document.getElementById('logout-vault-btn');
-  if (logoutVaultBtn) {
-    logoutVaultBtn.addEventListener('click', handleLogoutVault);
-  }
+  document.getElementById('logout-vault-btn')?.addEventListener('click', handleLogoutVault);
   
-  const addEntryBtn = document.getElementById('add-entry-btn');
-  if (addEntryBtn) {
-    addEntryBtn.addEventListener('click', showAddEntryForm);
-  }
+  document.getElementById('add-entry-btn')?.addEventListener('click', () => {
+    showAddEntryForm();
+  });
   
-  const emptyAddBtn = document.getElementById('empty-add-btn');
-  if (emptyAddBtn) {
-    emptyAddBtn.addEventListener('click', showAddEntryForm);
-  }
+  document.getElementById('empty-add-btn')?.addEventListener('click', () => {
+    showAddEntryForm();
+  });
   
-  const searchEntries = document.getElementById('search-entries');
-  if (searchEntries) {
-    searchEntries.addEventListener('input', handleSearch);
-  }
+  document.getElementById('search-entries')?.addEventListener('input', handleSearch);
   
   // Entry form
-  const entryForm = document.getElementById('entry-form');
-  if (entryForm) {
-    entryForm.addEventListener('submit', handleSaveEntry);
-  }
+  document.getElementById('entry-form')?.addEventListener('submit', handleSaveEntry);
   
-  const cancelEntryBtn = document.getElementById('cancel-entry-btn');
-  if (cancelEntryBtn) {
-    cancelEntryBtn.addEventListener('click', () => showScreen('main-screen'));
-  }
+  document.getElementById('cancel-entry-btn')?.addEventListener('click', () => {
+    showScreen('main-screen');
+  });
   
-  const togglePassword = document.getElementById('toggle-password');
-  if (togglePassword) {
-    togglePassword.addEventListener('click', togglePasswordVisibility);
-  }
+  document.getElementById('toggle-password')?.addEventListener('click', togglePasswordVisibility);
   
-  const generatePasswordBtn = document.getElementById('generate-password');
-  if (generatePasswordBtn) {
-    generatePasswordBtn.addEventListener('click', showPasswordGenerator);
-  }
+  document.getElementById('generate-password')?.addEventListener('click', showPasswordGenerator);
   
   // Entry details modal
-  const closeDetails = document.getElementById('close-details');
-  if (closeDetails) {
-    closeDetails.addEventListener('click', hideEntryDetails);
-  }
+  document.getElementById('close-details')?.addEventListener('click', hideEntryDetails);
   
-  const toggleDetailPassword = document.getElementById('toggle-detail-password');
-  if (toggleDetailPassword) {
-    toggleDetailPassword.addEventListener('click', toggleDetailPasswordVisibility);
-  }
+  document.getElementById('toggle-detail-password')?.addEventListener('click', toggleDetailPasswordVisibility);
   
-  const editFromDetails = document.getElementById('edit-from-details');
-  if (editFromDetails) {
-    editFromDetails.addEventListener('click', editFromDetailsModal);
-  }
+  document.getElementById('edit-from-details')?.addEventListener('click', () => {
+    if (currentDetailEntry) {
+      hideEntryDetails();
+      editEntry(currentDetailEntry.id);
+    }
+  });
   
-  const deleteFromDetails = document.getElementById('delete-from-details');
-  if (deleteFromDetails) {
-    deleteFromDetails.addEventListener('click', deleteFromDetailsModal);
-  }
+  document.getElementById('delete-from-details')?.addEventListener('click', async () => {
+    console.log('currentDetailEntry przy usuwaniu:', currentDetailEntry);
+    if (!currentDetailEntry || !currentDetailEntry.id) {
+      console.warn('Brak wpisu do usunięcia (currentDetailEntry null lub brak ID)');
+      return;
+    }
+    hideEntryDetails();
+    await deleteEntry(currentDetailEntry.id);
+  });
   
   // Copy buttons in details modal
   document.querySelectorAll('.btn-copy').forEach(btn => {
@@ -154,30 +131,15 @@ function setupEventListeners() {
   });
   
   // Password generator
-  const closeGenerator = document.getElementById('close-generator');
-  if (closeGenerator) {
-    closeGenerator.addEventListener('click', hidePasswordGenerator);
-  }
+  document.getElementById('close-generator')?.addEventListener('click', hidePasswordGenerator);
   
-  const passwordLength = document.getElementById('password-length');
-  if (passwordLength) {
-    passwordLength.addEventListener('input', updatePasswordLength);
-  }
+  document.getElementById('password-length')?.addEventListener('input', updatePasswordLength);
   
-  const regeneratePassword = document.getElementById('regenerate-password');
-  if (regeneratePassword) {
-    regeneratePassword.addEventListener('click', generateNewPassword);
-  }
+  document.getElementById('regenerate-password')?.addEventListener('click', generateNewPassword);
   
-  const copyGenerated = document.getElementById('copy-generated');
-  if (copyGenerated) {
-    copyGenerated.addEventListener('click', copyGeneratedPassword);
-  }
+  document.getElementById('copy-generated')?.addEventListener('click', copyGeneratedPassword);
   
-  const useGeneratedPassword = document.getElementById('use-generated-password');
-  if (useGeneratedPassword) {
-    useGeneratedPassword.addEventListener('click', useGeneratedPasswordFunc);
-  }
+  document.getElementById('use-generated-password')?.addEventListener('click', useGeneratedPassword);
   
   // Generator checkboxes
   document.querySelectorAll('#generator-modal input[type="checkbox"]').forEach(checkbox => {
@@ -195,6 +157,10 @@ function showScreen(screenId) {
   if (screen) {
     screen.classList.add('active');
     currentScreen = screenId;
+    
+    if (screenId === 'main-screen' || screenId === 'entry-form-screen') {
+      chrome.runtime.sendMessage({ action: 'RESET_LOCK_TIMER' });
+    }
   }
 }
 
@@ -379,7 +345,7 @@ async function loadEntries() {
     const response = await chrome.runtime.sendMessage({ action: 'GET_ALL_ENTRIES' });
     
     if (response.success) {
-      entries = response.entries;
+      entries = response.entries || [];
       displayEntries(entries);
     } else {
       throw new Error(response.error);
@@ -396,7 +362,7 @@ function displayEntries(entriesToShow) {
   
   if (!entriesList) return;
   
-  if (entriesToShow.length === 0) {
+  if (!entriesToShow || entriesToShow.length === 0) {
     entriesList.innerHTML = '';
     if (emptyState) emptyState.classList.remove('hidden');
   } else {
@@ -407,28 +373,73 @@ function displayEntries(entriesToShow) {
         <div class="entry-icon">
           ${getEntryIcon(entry.url)}
         </div>
-        <div class="entry-details" onclick="showEntryDetailsFunc('${entry.id}')">
-          <div class="entry-title">${escapeHtml(entry.title)}</div>
+        <div class="entry-details" data-action="details">
+          <div class="entry-title">${escapeHtml(entry.title || 'Bez tytułu')}</div>
           <div class="entry-subtitle">${escapeHtml(entry.username || entry.url || 'Brak danych')}</div>
         </div>
         <div class="entry-actions">
-          <button class="btn-icon" onclick="copyEntryDataFunc('${entry.id}', 'username')" title="Kopiuj login">
+          <button class="btn-icon" data-action="copy-url" title="Kopiuj link">
+            🔗
+          </button>
+          <button class="btn-icon" data-action="copy-username" title="Kopiuj login">
             👤
           </button>
-          <button class="btn-icon" onclick="copyEntryDataFunc('${entry.id}', 'password')" title="Kopiuj hasło">
+          <button class="btn-icon" data-action="copy-password" title="Kopiuj hasło">
             🔑
           </button>
-          <button class="btn-icon" onclick="editEntryFunc('${entry.id}')" title="Edytuj">
+          <button class="btn-icon" data-action="edit" title="Edytuj">
             ✏️
           </button>
-          <button class="btn-icon" onclick="deleteEntryFunc('${entry.id}')" title="Usuń">
+          <button class="btn-icon" data-action="delete" title="Usuń">
             🗑️
           </button>
         </div>
       </div>
     `).join('');
+    
+    setupEntriesEventDelegation();
   }
 }
+
+function setupEntriesEventDelegation() {
+  const entriesList = document.getElementById('entries-list');
+  if (entriesList) {
+    entriesList.removeEventListener('click', handleEntriesClick);
+    entriesList.addEventListener('click', handleEntriesClick);
+  }
+}
+
+function handleEntriesClick(e) {
+    const entryItem = e.target.closest('.entry-item');
+    if (!entryItem) return;
+  
+    const entryId = entryItem.dataset.id;
+    const button = e.target.closest('button');
+    const details = e.target.closest('[data-action="details"]');
+  
+    if (button) {
+      const action = button.getAttribute('data-action');
+      switch (action) {
+        case 'copy-url':
+          copyEntryData(entryId, 'url');
+          break;
+        case 'copy-username':
+          copyEntryData(entryId, 'username');
+          break;
+        case 'copy-password':
+          copyEntryData(entryId, 'password');
+          break;
+        case 'edit':
+          editEntry(entryId);
+          break;
+        case 'delete':
+          deleteEntry(entryId);
+          break;
+      }
+    } else if (details) {
+      showEntryDetails(entryId);
+    }
+  }
 
 function getEntryIcon(url) {
   if (!url) return '🔐';
@@ -438,6 +449,7 @@ function getEntryIcon(url) {
     if (domain.includes('google')) return '🅖';
     if (domain.includes('facebook')) return '🅕';
     if (domain.includes('microsoft')) return '🅜';
+    if (domain.includes('linkedin')) return '🅛';
     if (domain.includes('apple')) return '🍎';
     if (domain.includes('github')) return '🐙';
     return '🌐';
@@ -453,9 +465,13 @@ function showAddEntryForm() {
   showScreen('entry-form-screen');
 }
 
-function editEntryFunc(id) {
+function editEntry(id) {
+  console.log('Edytujemy wpis ID:', id); // dodaj ten log
   const entry = entries.find(e => e.id == id);
-  if (!entry) return;
+  if (!entry) {
+    console.error('Entry not found:', id);
+    return;
+  }
   
   currentEntryId = id;
   document.getElementById('entry-form-title').textContent = '✏️ Edytuj hasło';
@@ -470,7 +486,7 @@ function editEntryFunc(id) {
 
 async function handleSaveEntry(e) {
   e.preventDefault();
-  
+  console.log('Aktualne ID przed zapisem:', currentEntryId); // dodaj to
   const title = document.getElementById('entry-title').value;
   const url = document.getElementById('entry-url').value;
   const username = document.getElementById('entry-username').value;
@@ -491,6 +507,11 @@ async function handleSaveEntry(e) {
     
     if (currentEntryId) {
       entryData.id = currentEntryId;
+      
+      const existingEntry = entries.find(e => e.id == currentEntryId);
+      if (existingEntry) {
+        entryData.created = existingEntry.created;
+      }
     }
     
     const response = await chrome.runtime.sendMessage({
@@ -513,7 +534,7 @@ async function handleSaveEntry(e) {
   }
 }
 
-async function deleteEntryFunc(id) {
+async function deleteEntry(id) {
   if (!confirm('Czy na pewno chcesz usunąć to hasło?')) {
     return;
   }
@@ -537,9 +558,12 @@ async function deleteEntryFunc(id) {
 }
 
 // Entry details modal
-function showEntryDetailsFunc(id) {
+function showEntryDetails(id) {
   const entry = entries.find(e => e.id == id);
-  if (!entry) return;
+  if (!entry) {
+    console.error('Entry not found for details:', id);
+    return;
+  }
   
   currentDetailEntry = entry;
   
@@ -547,6 +571,7 @@ function showEntryDetailsFunc(id) {
   document.getElementById('detail-entry-url').textContent = entry.url || 'Brak URL';
   document.getElementById('detail-entry-username').textContent = entry.username || 'Brak nazwy użytkownika';
   document.getElementById('detail-entry-password').textContent = '••••••••';
+  document.getElementById('detail-entry-password').classList.add('password-hidden');
   document.getElementById('detail-entry-notes').textContent = entry.notes || 'Brak notatek';
   
   document.getElementById('entry-details-modal').classList.remove('hidden');
@@ -561,23 +586,15 @@ function toggleDetailPasswordVisibility() {
   const passwordSpan = document.getElementById('detail-entry-password');
   const toggleBtn = document.getElementById('toggle-detail-password');
   
-  if (passwordSpan.textContent === '••••••••') {
+  if (passwordSpan.classList.contains('password-hidden')) {
     passwordSpan.textContent = currentDetailEntry.password;
+    passwordSpan.classList.remove('password-hidden');
     toggleBtn.textContent = '🙈';
   } else {
     passwordSpan.textContent = '••••••••';
+    passwordSpan.classList.add('password-hidden');
     toggleBtn.textContent = '👁️';
   }
-}
-
-function editFromDetailsModal() {
-  hideEntryDetails();
-  editEntryFunc(currentDetailEntry.id);
-}
-
-async function deleteFromDetailsModal() {
-  hideEntryDetails();
-  await deleteEntryFunc(currentDetailEntry.id);
 }
 
 function handleDetailCopy(e) {
@@ -587,19 +604,29 @@ function handleDetailCopy(e) {
   const value = currentDetailEntry[field];
   if (value) {
     copyToClipboard(value);
+    const fieldNames = {
+      'username': 'Login',
+      'password': 'Hasło',
+      'url': 'URL'
+    };
+    showToast(`${fieldNames[field] || field} skopiowane!`, 'success');
   }
 }
 
 // Copy functionality
-async function copyEntryDataFunc(id, field) {
+async function copyEntryData(id, field) {
   const entry = entries.find(e => e.id == id);
   if (!entry) return;
   
   const value = entry[field];
   if (value) {
     await copyToClipboard(value);
-    let fieldName = field === 'username' ? 'Login' : field === 'password' ? 'Hasło' : 'URL';
-    showToast(`${fieldName} skopiowane!`, 'success');
+    const fieldNames = {
+      'username': 'Login',
+      'password': 'Hasło',
+      'url': 'URL'
+    };
+    showToast(`${fieldNames[field] || field} skopiowane!`, 'success');
   }
 }
 
@@ -607,13 +634,13 @@ async function copyEntryDataFunc(id, field) {
 function handleSearch(e) {
   const query = e.target.value.toLowerCase();
   
-  if (query === '') {
+  if (!query || query === '') {
     displayEntries(entries);
   } else {
     const filtered = entries.filter(entry => 
-      entry.title?.toLowerCase().includes(query) ||
-      entry.username?.toLowerCase().includes(query) ||
-      entry.url?.toLowerCase().includes(query)
+      (entry.title && entry.title.toLowerCase().includes(query)) ||
+      (entry.username && entry.username.toLowerCase().includes(query)) ||
+      (entry.url && entry.url.toLowerCase().includes(query))
     );
     displayEntries(filtered);
   }
@@ -661,9 +688,10 @@ async function generateNewPassword() {
 function copyGeneratedPassword() {
   const password = document.getElementById('generated-password').value;
   copyToClipboard(password);
+  showToast('Hasło skopiowane!', 'success');
 }
 
-function useGeneratedPasswordFunc() {
+function useGeneratedPassword() {
   const password = document.getElementById('generated-password').value;
   document.getElementById('entry-password').value = password;
   hidePasswordGenerator();
@@ -723,18 +751,27 @@ function showToast(message, type = 'info') {
   container.appendChild(toast);
   
   setTimeout(() => {
-    toast.remove();
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.3s ease';
+    
+    setTimeout(() => {
+      if (container.contains(toast)) {
+        container.removeChild(toast);
+      }
+    }, 300);
   }, 3000);
 }
 
 function escapeHtml(text) {
+  if (!text) return '';
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
 }
 
-// Make functions global for onclick handlers
-window.copyEntryDataFunc = copyEntryDataFunc;
-window.editEntryFunc = editEntryFunc;
-window.deleteEntryFunc = deleteEntryFunc;
-window.showEntryDetailsFunc = showEntryDetailsFunc;
+
+// Make functions available for entries list click handlers
+window.showEntryDetails = showEntryDetails;
+window.editEntry = editEntry;
+window.deleteEntry = deleteEntry;
+window.copyEntryData = copyEntryData;
