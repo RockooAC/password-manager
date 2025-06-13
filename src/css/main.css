@@ -1,0 +1,303 @@
+/* ==========================================================================
+   GŁÓWNE STYLE I LAYOUT - main.css
+   ========================================================================== */
+
+/* Reset i podstawowe ustawienia */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  body {
+    width: 420px;
+    height: 600px;
+    min-width: 420px;
+    max-width: 420px;
+    min-height: 600px;
+    max-height: 600px;
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #333;
+    overflow: hidden;
+    overflow-x: hidden;
+    position: relative;
+    margin: 0 auto;
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    -webkit-transform: translate3d(0, 0, 0);
+    transform: translate3d(0, 0, 0);
+  }
+  
+  /* Zmienne CSS dla glassmorphism */
+  :root {
+    --glass-bg: rgba(255, 255, 255, 0.15);
+    --glass-border: rgba(255, 255, 255, 0.2);
+    --glass-hover: rgba(255, 255, 255, 0.25);
+    --shadow-light: 0 8px 32px rgba(31, 38, 135, 0.37);
+    --shadow-hover: 0 12px 40px rgba(31, 38, 135, 0.5);
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --accent-color: #00d4ff;
+    --text-primary: #2d3748;
+    --text-secondary: #4a5568;
+    --success: #48bb78;
+    --error: #f56565;
+  }
+  
+  /* Screen management */
+  .screen {
+    display: none;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    overflow-x: hidden;
+  }
+  
+  .screen.active {
+    display: flex;
+    flex-direction: column;
+    opacity: 1;
+    min-height: 600px;
+    max-height: 600px;
+  }
+  
+  /* Loading screen */
+  .loading-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    color: white;
+    text-align: center;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    overflow-x: hidden;
+  }
+  
+  /* Welcome screen */
+  .welcome-container {
+    padding: 40px 24px;
+    text-align: center;
+    color: white;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-light);
+    overflow-x: hidden;
+  }
+  
+  .logo {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+  }
+  
+  .welcome-container h1 {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    font-weight: 600;
+    background: linear-gradient(135deg, #ffffff, var(--accent-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .welcome-text {
+    font-size: 1rem;
+    margin-bottom: 30px;
+    opacity: 0.9;
+    max-width: 90%;
+    word-wrap: break-word;
+  }
+  
+  .feature-list {
+    margin-bottom: 40px;
+    max-width: 100%;
+  }
+  
+  .feature {
+    padding: 8px 0;
+    font-size: 0.9rem;
+    opacity: 0.9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    max-width: 100%;
+    word-wrap: break-word;
+  }
+  
+  /* Header - stabilizowany */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    background: var(--glass-bg);
+    border-bottom: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-light);
+    min-width: 420px;
+    max-width: 420px;
+    min-height: 84px;
+    max-height: 84px;
+    overflow: visible;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 1;
+  }
+  
+  .header-left {
+    flex: 1;
+    min-width: 0;
+    max-width: 60%;
+    min-height: 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  
+  .header-left h2 {
+    font-size: 1.4rem;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    font-weight: 600;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    line-height: 1.2;
+  }
+  
+  .vault-status {
+    display: flex;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    min-height: 20px;
+  }
+  
+  .status-indicator {
+    margin-right: 6px;
+    font-size: 1rem;
+  }
+  
+  .header-actions {
+    display: flex;
+    gap: 16px;
+    flex-shrink: 0;
+    align-items: center;
+    max-width: 40%;
+    overflow: visible;
+    padding: 12px;
+    min-height: 68px;
+    justify-content: center;
+  }
+  
+  /* Search container */
+  .search-container {
+    padding: 16px 24px;
+    background: var(--glass-bg);
+    border-bottom: 1px solid var(--glass-border);
+    overflow-x: hidden;
+    max-width: 420px;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 0;
+    min-height: 68px;
+  }
+  
+  /* Entries container */
+  .entries-container {
+    flex: 1;
+    background: var(--glass-bg);
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-width: 420px;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 0;
+  }
+  
+  .entries-list {
+    padding: 12px 0;
+    overflow: visible;
+  }
+  
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 60px 24px;
+    color: var(--text-secondary);
+    background: var(--glass-bg);
+    border-radius: 16px;
+    margin: 20px;
+    border: 1px solid var(--glass-border);
+    max-width: calc(420px - 40px);
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+  
+  .empty-icon {
+    font-size: 3rem;
+    margin-bottom: 20px;
+    opacity: 0.6;
+  }
+  
+  .empty-state h3 {
+    margin-bottom: 10px;
+    color: var(--text-primary);
+    font-weight: 600;
+    word-wrap: break-word;
+  }
+  
+  .empty-state p {
+    margin-bottom: 30px;
+    font-size: 0.9rem;
+    word-wrap: break-word;
+  }
+  
+  /* Utility classes */
+  .hidden {
+    display: none !important;
+  }
+  
+  .text-center {
+    text-align: center;
+  }
+  
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: var(--accent-color);
+    border-radius: 3px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: #00bfff;
+  }
+  
+  /* Focus styles dla dostępności */
+  button:focus,
+  input:focus,
+  textarea:focus {
+    outline: 2px solid var(--accent-color);
+    outline-offset: 2px;
+  }
+  
