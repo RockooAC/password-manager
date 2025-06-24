@@ -4,11 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SecurePass Manager</title>
-  <link rel="stylesheet" href="popup.css">
-  <!-- <link rel="stylesheet" href="../css/main.css">
-  <link rel="stylesheet" href="../css/components.css">
-  <link rel="stylesheet" href="../css/animations.css">
-  <link rel="stylesheet" href="../css/responsive.css"> -->
+  <link rel="stylesheet" href="./../css/base.css">
+  <link rel="stylesheet" href="./../css/layout.css">
+  <link rel="stylesheet" href="./../css/components.css">
+  <link rel="stylesheet" href="./../css/modals.css">
 </head>
 <body>
   <!-- Loading Screen -->
@@ -23,219 +22,257 @@
   <!-- Welcome Screen -->
   <div id="welcome-screen" class="screen">
     <div class="welcome-container">
-      <div class="logo">🔐</div>
-      <h1>Witaj w SecurePass</h1>
-      <p class="welcome-text">Bezpieczny menedżer haseł z szyfrowaniem lokalnym</p>
-      <div class="feature-list">
-        <div class="feature">✓ Szyfrowanie AES-256-GCM</div>
-        <div class="feature">✓ Lokalne przechowywanie danych</div>
-        <div class="feature">✓ Automatyczne autouzupełnianie</div>
-        <div class="feature">✓ Generator bezpiecznych haseł</div>
+      <div class="welcome-content">
+        <div class="logo">🔐</div>
+        <h1>Witaj w SecurePass</h1>
+        <p class="welcome-text">Bezpieczny menedżer haseł z szyfrowaniem lokalnym</p>
+        <div class="feature-grid">
+          <div class="feature">✓ Szyfrowanie AES-256-GCM</div>
+          <div class="feature">✓ Lokalne przechowywanie danych</div>
+          <div class="feature">✓ Automatyczne autouzupełnianie</div>
+          <div class="feature">✓ Generator bezpiecznych haseł</div>
+        </div>
+        <button id="create-vault-btn" class="btn-primary">
+          🔒 Utwórz nowy sejf
+        </button>
       </div>
-      <button id="create-vault-btn" class="btn-primary">
-        🔒 Utwórz nowy sejf
-      </button>
     </div>
   </div>
 
   <!-- Registration Screen -->
   <div id="register-screen" class="screen">
-    <div class="form-container">
-      <h2>🔐 Utwórz nowy sejf</h2>
-      <form id="register-form">
-        <div class="input-group">
-          <label for="master-password">Hasło główne</label>
-          <input 
-            type="password" 
-            id="master-password" 
-            required 
-            placeholder="Wprowadź silne hasło główne"
-          >
-          <div id="password-strength" class="password-strength">
-            <div class="strength-bar">
-              <div class="strength-fill"></div>
+    <div class="dual-panel">
+      <div class="panel-left">
+        <div class="panel-decoration">
+          <div class="decoration-icon">🔐</div>
+          <h3>Bezpieczny sejf</h3>
+          <p>Twoje hasła będą chronione szyfrowaniem AES-256-GCM</p>
+        </div>
+      </div>
+      <div class="panel-right">
+        <div class="form-container">
+          <h2>🔐 Utwórz nowy sejf</h2>
+          <form id="register-form">
+            <div class="form-row">
+              <div class="input-group">
+                <label for="master-password">Hasło główne</label>
+                <input type="password" id="master-password" required placeholder="Wprowadź silne hasło główne">
+              </div>
+              <div class="input-group">
+                <label for="confirm-password">Potwierdź hasło</label>
+                <input type="password" id="confirm-password" required placeholder="Powtórz hasło główne">
+                <div id="password-match" class="password-match"></div>
+              </div>
             </div>
-            <div class="strength-text">Siła hasła: <span id="strength-level">Słabe</span></div>
-            <div id="strength-feedback" class="strength-feedback"></div>
-          </div>
+            
+            <div id="password-strength" class="password-strength">
+              <div class="strength-bar">
+                <div class="strength-fill"></div>
+              </div>
+              <div class="strength-text">Siła hasła: <span id="strength-level">Słabe</span></div>
+              <div id="strength-feedback" class="strength-feedback"></div>
+            </div>
+            
+            <div class="security-notice">
+              <div class="notice-icon">⚠️</div>
+              <div class="notice-text">
+                <strong>Ważne:</strong> Hasło główne nie może być odzyskane. 
+                Zapamiętaj je lub zapisz w bezpiecznym miejscu.
+              </div>
+            </div>
+            
+            <div class="form-actions">
+              <button type="submit" class="btn-primary" id="create-vault-submit">
+                <span class="btn-text">🔒 Utwórz sejf</span>
+                <div class="btn-spinner hidden"></div>
+              </button>
+              <button type="button" id="back-to-welcome" class="btn-secondary">
+                ← Powrót
+              </button>
+            </div>
+          </form>
         </div>
-        
-        <div class="input-group">
-          <label for="confirm-password">Potwierdź hasło</label>
-          <input 
-            type="password" 
-            id="confirm-password" 
-            required 
-            placeholder="Powtórz hasło główne"
-          >
-          <div id="password-match" class="password-match"></div>
-        </div>
-        
-        <div class="security-notice">
-          <div class="notice-icon">⚠️</div>
-          <div class="notice-text">
-            <strong>Ważne:</strong> Hasło główne nie może być odzyskane. 
-            Zapamiętaj je lub zapisz w bezpiecznym miejscu.
-          </div>
-        </div>
-        
-        <button type="submit" class="btn-primary" id="create-vault-submit">
-          <span class="btn-text">🔒 Utwórz sejf</span>
-          <div class="btn-spinner hidden"></div>
-        </button>
-      </form>
-      
-      <button id="back-to-welcome" class="btn-secondary">
-        ← Powrót
-      </button>
+      </div>
     </div>
   </div>
 
   <!-- Login Screen -->
   <div id="login-screen" class="screen">
-    <div class="form-container">
-      <h2>🔐 Odblokuj sejf</h2>
-      <form id="login-form">
-        <div class="input-group">
-          <label for="login-password">Hasło główne</label>
-          <input 
-            type="password" 
-            id="login-password" 
-            required 
-            placeholder="Wprowadź hasło główne"
-          >
+    <div class="dual-panel">
+      <div class="panel-left">
+        <div class="panel-decoration">
+          <div class="decoration-icon">🔓</div>
+          <h3>Odblokuj sejf</h3>
+          <p>Wprowadź hasło główne aby uzyskać dostęp do swoich haseł</p>
         </div>
-        
-        <div id="login-error" class="error-message hidden">
-          Nieprawidłowe hasło główne
+      </div>
+      <div class="panel-right">
+        <div class="form-container">
+          <h2>🔐 Odblokuj sejf</h2>
+          <form id="login-form">
+            <div class="input-group">
+              <label for="login-password">Hasło główne</label>
+              <input type="password" id="login-password" required placeholder="Wprowadź hasło główne">
+            </div>
+            
+            <div id="login-error" class="error-message hidden">
+              Nieprawidłowe hasło główne
+            </div>
+            
+            <div class="form-actions">
+              <button type="submit" class="btn-primary" id="unlock-submit">
+                <span class="btn-text">🔓 Odblokuj</span>
+                <div class="btn-spinner hidden"></div>
+              </button>
+              <button type="button" id="reset-vault-btn" class="btn-danger">
+                🗑️ Resetuj sejf
+              </button>
+            </div>
+          </form>
         </div>
-        
-        <button type="submit" class="btn-primary" id="unlock-submit">
-          <span class="btn-text">🔓 Odblokuj</span>
-          <div class="btn-spinner hidden"></div>
-        </button>
-      </form>
-      
-      <div class="login-options">
-        <button id="reset-vault-btn" class="btn-danger">
-          🗑️ Resetuj sejf
-        </button>
       </div>
     </div>
   </div>
 
   <!-- Main Screen -->
   <div id="main-screen" class="screen">
-    <div class="header">
-      <div class="header-left">
-        <h2>🔐 Twoje hasła</h2>
-        <div class="vault-status">
-          <span class="status-indicator">🔓</span>
-          <span>Odblokowany</span>
+    <div class="horizontal-layout">
+      <!-- Left Panel - Password List -->
+      <div class="left-panel">
+        <div class="panel-header">
+          <h2>🔐 Twoje hasła</h2>
+          <div class="vault-status">
+            <span class="status-indicator">🔓</span>
+            <span>Odblokowany</span>
+          </div>
+        </div>
+        
+        <div class="search-container">
+          <input type="text" id="search-entries" placeholder="🔍 Szukaj haseł..." class="search-input">
+        </div>
+        
+        <div id="entries-container" class="entries-container">
+          <div id="entries-list" class="entries-list"></div>
+          <div id="empty-state" class="empty-state">
+            <div class="empty-icon">📝</div>
+            <h3>Brak zapisanych haseł</h3>
+            <p>Dodaj pierwsze hasło</p>
+            <button id="empty-add-btn" class="btn-primary">
+              ➕ Dodaj hasło
+            </button>
+          </div>
         </div>
       </div>
-      <div class="header-actions">
-        <button id="logout-vault-btn" class="btn-icon" title="Wyloguj">
-          🚪
-        </button>
-        <button id="add-entry-btn" class="btn-icon" title="Dodaj hasło">
-          ➕
-        </button>
-      </div>
-    </div>
-    
-    <div class="search-container">
-      <input 
-        type="text" 
-        id="search-entries" 
-        placeholder="🔍 Szukaj haseł..."
-        class="search-input"
-      >
-    </div>
-    
-    <div id="entries-container" class="entries-container">
-      <div id="entries-list" class="entries-list"></div>
-      <div id="empty-state" class="empty-state">
-        <div class="empty-icon">📝</div>
-        <h3>Brak zapisanych haseł</h3>
-        <p>Dodaj pierwsze hasło, aby rozpocząć</p>
-        <button id="empty-add-btn" class="btn-primary">
-          ➕ Dodaj hasło
-        </button>
+
+      <!-- Right Panel - Actions & Details -->
+      <div class="right-panel">
+        <div class="panel-header">
+          <div class="header-actions">
+            <button id="add-entry-btn" class="btn-primary">
+              ➕ Dodaj hasło
+            </button>
+            <button id="logout-vault-btn" class="btn-secondary">
+              🚪 Wyloguj
+            </button>
+          </div>
+        </div>
+        
+        <div class="quick-actions">
+          <h3>Szybkie akcje</h3>
+          <div class="action-grid">
+            <button class="action-item" id="quick-add">
+              <div class="action-icon">➕</div>
+              <div class="action-text">Dodaj hasło</div>
+            </button>
+            <button class="action-item" id="generate-quick">
+              <div class="action-icon">🎲</div>
+              <div class="action-text">Generuj hasło</div>
+            </button>
+            <button class="action-item" id="export-data">
+              <div class="action-icon">📤</div>
+              <div class="action-text">Eksport</div>
+            </button>
+            <button class="action-item" id="settings">
+              <div class="action-icon">⚙️</div>
+              <div class="action-text">Ustawienia</div>
+            </button>
+          </div>
+        </div>
+        
+        <div class="stats-panel">
+          <h3>Statystyki</h3>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <div class="stat-number" id="total-passwords">0</div>
+              <div class="stat-label">Całkowita liczba haseł</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-number" id="strong-passwords">0</div>
+              <div class="stat-label">Silne hasła</div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 
   <!-- Add/Edit Entry Screen -->
   <div id="entry-form-screen" class="screen">
-    <div class="form-container">
-      <h2 id="entry-form-title">➕ Dodaj hasło</h2>
-      <form id="entry-form">
-        <div class="input-group">
-          <label for="entry-title">Tytuł</label>
-          <input 
-            type="text" 
-            id="entry-title" 
-            required 
-            placeholder="np. Gmail, Facebook..."
-          >
+    <div class="dual-panel">
+      <div class="panel-left">
+        <div class="panel-decoration">
+          <div class="decoration-icon">📝</div>
+          <h3 id="form-decoration-title">Nowe hasło</h3>
+          <p>Wypełnij formularz aby zapisać nowe hasło w sejfie</p>
         </div>
-        
-        <div class="input-group">
-          <label for="entry-url">URL</label>
-          <input 
-            type="url" 
-            id="entry-url" 
-            placeholder="https://example.com"
-          >
+      </div>
+      <div class="panel-right">
+        <div class="form-container">
+          <h2 id="entry-form-title">➕ Dodaj hasło</h2>
+          <form id="entry-form">
+            <div class="form-row">
+              <div class="input-group">
+                <label for="entry-title">Tytuł</label>
+                <input type="text" id="entry-title" required placeholder="np. Gmail, Facebook...">
+              </div>
+              <div class="input-group">
+                <label for="entry-url">URL</label>
+                <input type="url" id="entry-url" placeholder="https://example.com">
+              </div>
+            </div>
+            
+            <div class="form-row">
+              <div class="input-group">
+                <label for="entry-username">Nazwa użytkownika / Email</label>
+                <input type="text" id="entry-username" placeholder="john@example.com">
+              </div>
+              <div class="input-group">
+                <label for="entry-password">Hasło</label>
+                <div class="password-input-container">
+                  <input type="password" id="entry-password" required placeholder="Wprowadź lub wygeneruj hasło">
+                  <button type="button" id="toggle-password" class="btn-icon">👁️</button>
+                  <button type="button" id="generate-password" class="btn-icon" title="Generuj hasło">🎲</button>
+                </div>
+              </div>
+            </div>
+            
+            <div class="input-group">
+              <label for="entry-notes">Notatki (opcjonalne)</label>
+              <textarea id="entry-notes" placeholder="Dodatkowe informacje..." rows="3"></textarea>
+            </div>
+            
+            <div class="form-actions">
+              <button type="submit" class="btn-primary" id="save-entry-btn">
+                <span class="btn-text">💾 Zapisz</span>
+                <div class="btn-spinner hidden"></div>
+              </button>
+              <button type="button" id="cancel-entry-btn" class="btn-secondary">
+                ❌ Anuluj
+              </button>
+            </div>
+          </form>
         </div>
-        
-        <div class="input-group">
-          <label for="entry-username">Nazwa użytkownika / Email</label>
-          <input 
-            type="text" 
-            id="entry-username" 
-            placeholder="john@example.com"
-          >
-        </div>
-        
-        <div class="input-group">
-          <label for="entry-password">Hasło</label>
-          <div class="password-input-container">
-            <input 
-              type="password" 
-              id="entry-password" 
-              required 
-              placeholder="Wprowadź lub wygeneruj hasło"
-            >
-            <button type="button" id="toggle-password" class="btn-icon">
-              👁️
-            </button>
-            <button type="button" id="generate-password" class="btn-icon" title="Generuj hasło">
-              🎲
-            </button>
-          </div>
-        </div>
-        
-        <div class="input-group">
-          <label for="entry-notes">Notatki (opcjonalne)</label>
-          <textarea 
-            id="entry-notes" 
-            placeholder="Dodatkowe informacje..."
-            rows="3"
-          ></textarea>
-        </div>
-        
-        <div class="form-actions">
-          <button type="submit" class="btn-primary" id="save-entry-btn">
-            <span class="btn-text">💾 Zapisz</span>
-            <div class="btn-spinner hidden"></div>
-          </button>
-          <button type="button" id="cancel-entry-btn" class="btn-secondary">
-            ❌ Anuluj
-          </button>
-        </div>
-      </form>
+      </div>
     </div>
   </div>
 
@@ -248,37 +285,39 @@
       </div>
       
       <div class="entry-details-content">
-        <div class="detail-group">
-          <label>Tytuł:</label>
-          <span id="detail-entry-title"></span>
-        </div>
-        
-        <div class="detail-group">
-          <label>URL:</label>
-          <div class="detail-with-copy">
-            <span id="detail-entry-url"></span>
-            <button class="btn-icon btn-copy" data-field="url" title="Kopiuj">📋</button>
+        <div class="detail-row">
+          <div class="detail-group">
+            <label>Tytuł:</label>
+            <span id="detail-entry-title"></span>
+          </div>
+          <div class="detail-group">
+            <label>URL:</label>
+            <div class="detail-with-copy">
+              <span id="detail-entry-url"></span>
+              <button class="btn-icon btn-copy" data-field="url" title="Kopiuj">📋</button>
+            </div>
           </div>
         </div>
         
-        <div class="detail-group">
-          <label>Nazwa użytkownika:</label>
-          <div class="detail-with-copy">
-            <span id="detail-entry-username"></span>
-            <button class="btn-icon btn-copy" data-field="username" title="Kopiuj">📋</button>
+        <div class="detail-row">
+          <div class="detail-group">
+            <label>Nazwa użytkownika:</label>
+            <div class="detail-with-copy">
+              <span id="detail-entry-username"></span>
+              <button class="btn-icon btn-copy" data-field="username" title="Kopiuj">📋</button>
+            </div>
+          </div>
+          <div class="detail-group">
+            <label>Hasło:</label>
+            <div class="detail-with-copy">
+              <span id="detail-entry-password" class="password-hidden">••••••••</span>
+              <button id="toggle-detail-password" class="btn-icon" title="Pokaż/Ukryj">👁️</button>
+              <button class="btn-icon btn-copy" data-field="password" title="Kopiuj">📋</button>
+            </div>
           </div>
         </div>
         
-        <div class="detail-group">
-          <label>Hasło:</label>
-          <div class="detail-with-copy">
-            <span id="detail-entry-password" class="password-hidden">••••••••</span>
-            <button id="toggle-detail-password" class="btn-icon" title="Pokaż/Ukryj">👁️</button>
-            <button class="btn-icon btn-copy" data-field="password" title="Kopiuj">📋</button>
-          </div>
-        </div>
-        
-        <div class="detail-group">
+        <div class="detail-group full-width">
           <label>Notatki:</label>
           <span id="detail-entry-notes"></span>
         </div>
@@ -297,71 +336,61 @@
 
   <!-- Password Generator Modal -->
   <div id="generator-modal" class="modal hidden">
-    <div class="modal-content">
+    <div class="modal-content generator-modal">
       <div class="modal-header">
         <h3>🎲 Generator haseł</h3>
         <button id="close-generator" class="btn-icon">❌</button>
       </div>
       
-      <div class="generator-options">
-        <div class="option-group">
-          <label for="password-length">Długość: <span id="length-value">16</span></label>
-          <input 
-            type="range" 
-            id="password-length" 
-            min="8" 
-            max="32" 
-            value="16"
-            class="range-input"
-          >
+      <div class="generator-content">
+        <div class="generator-left">
+          <div class="option-group">
+            <label for="password-length">Długość: <span id="length-value">16</span></label>
+            <input type="range" id="password-length" min="8" max="32" value="16" class="range-input">
+          </div>
+          
+          <div class="checkbox-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="include-uppercase" checked>
+              <span class="checkmark"></span>
+              Wielkie litery (A-Z)
+            </label>
+            
+            <label class="checkbox-label">
+              <input type="checkbox" id="include-lowercase" checked>
+              <span class="checkmark"></span>
+              Małe litery (a-z)
+            </label>
+            
+            <label class="checkbox-label">
+              <input type="checkbox" id="include-numbers" checked>
+              <span class="checkmark"></span>
+              Cyfry (0-9)
+            </label>
+            
+            <label class="checkbox-label">
+              <input type="checkbox" id="include-symbols" checked>
+              <span class="checkmark"></span>
+              Znaki specjalne (!@#$...)
+            </label>
+          </div>
         </div>
         
-        <div class="checkbox-group">
-          <label class="checkbox-label">
-            <input type="checkbox" id="include-uppercase" checked>
-            <span class="checkmark"></span>
-            Wielkie litery (A-Z)
-          </label>
+        <div class="generator-right">
+          <div class="generated-password-container">
+            <input type="text" id="generated-password" readonly placeholder="Wygenerowane hasło pojawi się tutaj">
+            <div class="password-actions">
+              <button id="copy-generated" class="btn-icon" title="Kopiuj">📋</button>
+              <button id="regenerate-password" class="btn-icon" title="Generuj ponownie">🔄</button>
+            </div>
+          </div>
           
-          <label class="checkbox-label">
-            <input type="checkbox" id="include-lowercase" checked>
-            <span class="checkmark"></span>
-            Małe litery (a-z)
-          </label>
-          
-          <label class="checkbox-label">
-            <input type="checkbox" id="include-numbers" checked>
-            <span class="checkmark"></span>
-            Cyfry (0-9)
-          </label>
-          
-          <label class="checkbox-label">
-            <input type="checkbox" id="include-symbols" checked>
-            <span class="checkmark"></span>
-            Znaki specjalne (!@#$...)
-          </label>
+          <div class="modal-actions">
+            <button id="use-generated-password" class="btn-primary">
+              ✅ Użyj tego hasła
+            </button>
+          </div>
         </div>
-        
-        <div class="generated-password-container">
-          <input 
-            type="text" 
-            id="generated-password" 
-            readonly 
-            placeholder="Wygenerowane hasło pojawi się tutaj"
-          >
-          <button id="copy-generated" class="btn-icon" title="Kopiuj">
-            📋
-          </button>
-          <button id="regenerate-password" class="btn-icon" title="Generuj ponownie">
-            🔄
-          </button>
-        </div>
-      </div>
-      
-      <div class="modal-actions">
-        <button id="use-generated-password" class="btn-primary">
-          ✅ Użyj tego hasła
-        </button>
       </div>
     </div>
   </div>

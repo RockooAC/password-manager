@@ -4,20 +4,57 @@ let currentEntryId = null;
 let entries = [];
 let currentDetailEntry = null;
 
-// 🛠 Dodane funkcje: isVisible i triggerInputEvent
+// Funkcja obsługi rozwijanych statystyk
+function setupExpandableStats() {
+  // Znajdź panel statystyk i zastąp HTML
+  const statsPanel = document.querySelector('.stats-panel');
+  if (statsPanel) {
+    statsPanel.innerHTML = `
+      <div class="stats-header">
+        <h3>Statystyki</h3>
+        <span class="stats-toggle">▼</span>
+      </div>
+      <div class="stats-content">
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-number" id="total-passwords">0</div>
+            <div class="stat-label">Całkowita liczba haseł</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number" id="strong-passwords">0</div>
+            <div class="stat-label">Silne hasła</div>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Dodaj obsługę kliknięcia
+    const statsHeader = statsPanel.querySelector('.stats-header');
+    const statsToggle = statsPanel.querySelector('.stats-toggle');
+    
+    if (statsHeader && statsToggle) {
+      statsHeader.addEventListener('click', () => {
+        statsPanel.classList.toggle('expanded');
+        statsToggle.textContent = statsPanel.classList.contains('expanded') ? '▲' : '▼';
+      });
+    }
+  }
+}
+
+// Dodane funkcje pomocnicze
 function isVisible(element) {
     return !!element &&
            !!(element.offsetWidth || element.offsetHeight || element.getClientRects().length) &&
            window.getComputedStyle(element).visibility !== 'hidden' &&
            window.getComputedStyle(element).display !== 'none';
-  }
+}
   
-  function triggerInputEvent(element) {
+function triggerInputEvent(element) {
     const inputEvent = new Event('input', { bubbles: true });
     element.dispatchEvent(inputEvent);
     const changeEvent = new Event('change', { bubbles: true });
     element.dispatchEvent(changeEvent);
-  }
+}
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', async () => {
@@ -34,6 +71,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function initializeApp() {
   try {
+    // Setup expandable stats PRZED showScreen
+    setupExpandableStats();
+    
     const response = await chrome.runtime.sendMessage({ action: 'CHECK_VAULT_EXISTS' });
     
     if (response.success) {
@@ -89,6 +129,15 @@ function setupEventListeners() {
   document.getElementById('empty-add-btn')?.addEventListener('click', () => {
     showAddEntryForm();
   });
+
+  // Nowe quick actions
+  document.getElementById('quick-add')?.addEventListener('click', () => {
+    showAddEntryForm();
+  });
+
+  document.getElementById('generate-quick')?.addEventListener('click', () => {
+    showPasswordGenerator();
+  });
   
   document.getElementById('search-entries')?.addEventListener('input', handleSearch);
   
@@ -116,9 +165,8 @@ function setupEventListeners() {
   });
   
   document.getElementById('delete-from-details')?.addEventListener('click', async () => {
-    console.log('currentDetailEntry przy usuwaniu:', currentDetailEntry);
     if (!currentDetailEntry || !currentDetailEntry.id) {
-      console.warn('Brak wpisu do usunięcia (currentDetailEntry null lub brak ID)');
+      console.warn('Brak wpisu do usunięcia');
       return;
     }
     hideEntryDetails();
@@ -347,12 +395,37 @@ async function loadEntries() {
     if (response.success) {
       entries = response.entries || [];
       displayEntries(entries);
+      updateStats();
     } else {
       throw new Error(response.error);
     }
   } catch (error) {
     console.error('Load entries error:', error);
     showToast('Błąd ładowania haseł: ' + error.message, 'error');
+  }
+}
+
+// Aktualizacja statystyk
+function updateStats() {
+  const totalElement = document.getElementById('total-passwords');
+  const strongElement = document.getElementById('strong-passwords');
+  
+  if (totalElement) {
+    totalElement.textContent = entries.length || 0;
+  }
+  
+  if (strongElement) {
+    // Proste sprawdzenie silnych haseł
+    const strongCount = entries.filter(entry => {
+      const password = entry.password || '';
+      return password.length >= 12 && 
+             /[A-Z]/.test(password) && 
+             /[a-z]/.test(password) && 
+             /[0-9]/.test(password) && 
+             /[^A-Za-z0-9]/.test(password);
+    }).length;
+    
+    strongElement.textContent = strongCount;
   }
 }
 
@@ -378,21 +451,11 @@ function displayEntries(entriesToShow) {
           <div class="entry-subtitle">${escapeHtml(entry.username || entry.url || 'Brak danych')}</div>
         </div>
         <div class="entry-actions">
-          <button class="btn-icon" data-action="copy-url" title="Kopiuj link">
-            🔗
-          </button>
-          <button class="btn-icon" data-action="copy-username" title="Kopiuj login">
-            👤
-          </button>
-          <button class="btn-icon" data-action="copy-password" title="Kopiuj hasło">
-            🔑
-          </button>
-          <button class="btn-icon" data-action="edit" title="Edytuj">
-            ✏️
-          </button>
-          <button class="btn-icon" data-action="delete" title="Usuń">
-            🗑️
-          </button>
+          <button class="btn-icon" data-action="copy-url" title="Kopiuj link">🔗</button>
+          <button class="btn-icon" data-action="copy-username" title="Kopiuj login">👤</button>
+          <button class="btn-icon" data-action="copy-password" title="Kopiuj hasło">🔑</button>
+          <button class="btn-icon" data-action="edit" title="Edytuj">✏️</button>
+          <button class="btn-icon" data-action="delete" title="Usuń">🗑️</button>
         </div>
       </div>
     `).join('');
@@ -400,6 +463,7 @@ function displayEntries(entriesToShow) {
     setupEntriesEventDelegation();
   }
 }
+
 
 function setupEntriesEventDelegation() {
   const entriesList = document.getElementById('entries-list');
@@ -439,34 +503,78 @@ function handleEntriesClick(e) {
     } else if (details) {
       showEntryDetails(entryId);
     }
-  }
+}
 
 function getEntryIcon(url) {
   if (!url) return '🔐';
   
   try {
     const domain = new URL(url).hostname.toLowerCase();
-    if (domain.includes('google')) return '🅖';
-    if (domain.includes('facebook')) return '🅕';
-    if (domain.includes('microsoft')) return '🅜';
-    if (domain.includes('linkedin')) return '🅛';
-    if (domain.includes('apple')) return '🍎';
-    if (domain.includes('github')) return '🐙';
+    
+    // Rozszerzona mapa domen - około 50 najpopularniejszych serwisów
+    const iconMap = {
+      // Social Media
+      'facebook.com': '🅕', 'instagram.com': '📷', 'twitter.com': '🐦', 'x.com': '🐦',
+      'linkedin.com': '🅛', 'youtube.com': '📺', 'tiktok.com': '🎵', 'snapchat.com': '👻',
+      'reddit.com': '📱', 'discord.com': '💬', 'telegram.org': '✈️', 'whatsapp.com': '💬',
+      
+      // Tech Giants
+      'google.com': '🅖', 'microsoft.com': '🅜', 'apple.com': '🍎', 'amazon.com': '📦',
+      'meta.com': '🅜', 'openai.com': '🤖', 'anthropic.com': '🧠',
+      
+      // Entertainment
+      'netflix.com': '🎬', 'spotify.com': '🎵', 'twitch.tv': '🎮', 'steam.com': '🎮',
+      'disney.com': '🏰', 'hulu.com': '📺', 'primevideo.com': '📺',
+      
+      // Business & Finance
+      'paypal.com': '💳', 'stripe.com': '💳', 'revolut.com': '💳', 'wise.com': '💸',
+      'chase.com': '🏛️', 'bankofamerica.com': '🏛️', 'wellsfargo.com': '🏛️',
+      
+      // Development
+      'github.com': '🐙', 'gitlab.com': '🦊', 'bitbucket.org': '⚡', 'stackoverflow.com': '📚',
+      'npmjs.com': '📦', 'vercel.com': '▲', 'heroku.com': '🟣', 'aws.amazon.com': '☁️',
+      
+      // E-commerce
+      'ebay.com': '🛒', 'etsy.com': '🛍️', 'shopify.com': '🛒', 'alibaba.com': '🌏',
+      
+      // Email & Communication
+      'gmail.com': '📧', 'outlook.com': '📧', 'yahoo.com': '📧', 'protonmail.com': '🔒',
+      'slack.com': '💬', 'zoom.us': '📹', 'teams.microsoft.com': '💼',
+      
+      // Utilities
+      'dropbox.com': '📦', 'onedrive.com': '☁️', 'icloud.com': '☁️', 'drive.google.com': '📁'
+    };
+    
+    // Sprawdź mapę dokładnych domen
+    for (const [key, icon] of Object.entries(iconMap)) {
+      if (domain.includes(key)) return icon;
+    }
+    
+    // Fallback na podstawie kategorii
+    if (domain.includes('bank') || domain.includes('credit')) return '🏛️';
+    if (domain.includes('shop') || domain.includes('store')) return '🛒';
+    if (domain.includes('mail') || domain.includes('email')) return '📧';
+    if (domain.includes('game') || domain.includes('gaming')) return '🎮';
+    if (domain.includes('music') || domain.includes('audio')) return '🎵';
+    if (domain.includes('video') || domain.includes('streaming')) return '📺';
+    if (domain.includes('news') || domain.includes('blog')) return '📰';
+    
     return '🌐';
   } catch {
     return '🔐';
   }
 }
 
+
 function showAddEntryForm() {
   currentEntryId = null;
   document.getElementById('entry-form-title').textContent = '➕ Dodaj hasło';
+  document.getElementById('form-decoration-title').textContent = 'Nowe hasło';
   document.getElementById('entry-form').reset();
   showScreen('entry-form-screen');
 }
 
 function editEntry(id) {
-  console.log('Edytujemy wpis ID:', id); // dodaj ten log
   const entry = entries.find(e => e.id == id);
   if (!entry) {
     console.error('Entry not found:', id);
@@ -475,6 +583,7 @@ function editEntry(id) {
   
   currentEntryId = id;
   document.getElementById('entry-form-title').textContent = '✏️ Edytuj hasło';
+  document.getElementById('form-decoration-title').textContent = 'Edycja hasła';
   document.getElementById('entry-title').value = entry.title || '';
   document.getElementById('entry-url').value = entry.url || '';
   document.getElementById('entry-username').value = entry.username || '';
@@ -486,7 +595,7 @@ function editEntry(id) {
 
 async function handleSaveEntry(e) {
   e.preventDefault();
-  console.log('Aktualne ID przed zapisem:', currentEntryId); // dodaj to
+  
   const title = document.getElementById('entry-title').value;
   const url = document.getElementById('entry-url').value;
   const username = document.getElementById('entry-username').value;
@@ -751,9 +860,7 @@ function showToast(message, type = 'info') {
   container.appendChild(toast);
   
   setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transition = 'opacity 0.3s ease';
-    
+    toast.classList.add('hidden');
     setTimeout(() => {
       if (container.contains(toast)) {
         container.removeChild(toast);
@@ -769,8 +876,7 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-
-// Make functions available for entries list click handlers
+// Make functions available globally
 window.showEntryDetails = showEntryDetails;
 window.editEntry = editEntry;
 window.deleteEntry = deleteEntry;
