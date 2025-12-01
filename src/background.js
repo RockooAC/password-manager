@@ -107,6 +107,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       handleChangeMasterPassword(request.data, sendResponse);
       return true;
 
+      
     default:
       sendResponse({ error: 'Unknown action' });
       return false;
