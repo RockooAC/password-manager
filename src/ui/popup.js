@@ -187,7 +187,8 @@ function setupEventListeners() {
   document.getElementById('change-password-submit')?.addEventListener('click', handleChangePassword);
   document.getElementById('change-master-password')?.addEventListener('input', updateChangePasswordFeedback);
   document.getElementById('change-confirm-password')?.addEventListener('input', updateChangePasswordFeedback);
-  
+  setupSettingsTabs();
+
   // Entry form
   document.getElementById('entry-form')?.addEventListener('submit', handleSaveEntry);
   
@@ -239,6 +240,17 @@ function setupEventListeners() {
   // Generator checkboxes
   document.querySelectorAll('#generator-modal input[type="checkbox"]').forEach(checkbox => {
     checkbox.addEventListener('change', generateNewPassword);
+  });
+}
+
+function setupSettingsTabs() {
+  const tabs = document.querySelectorAll('.settings-tab');
+  if (!tabs.length) return;
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      activateSettingsPanel(tab.dataset.target);
+    });
   });
 }
 
@@ -576,6 +588,25 @@ async function updateSecurityStatus() {
   }
 }
 
+function activateSettingsPanel(targetId) {
+  if (!targetId) return;
+
+  const tabs = document.querySelectorAll('.settings-tab');
+  const panels = document.querySelectorAll('.settings-panel');
+
+  tabs.forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.target === targetId);
+  });
+
+  panels.forEach(panel => {
+    panel.classList.toggle('active', panel.id === targetId);
+  });
+
+  if (targetId === 'settings-security') {
+    updateSecurityStatus();
+  }
+}
+
 function showSettingsModal() {
   if (currentScreen !== 'main-screen') {
     showToast('Odblokuj sejf, aby otworzyć ustawienia', 'error');
@@ -584,13 +615,7 @@ function showSettingsModal() {
 
   document.getElementById('settings-modal')?.classList.remove('hidden');
   updateChangePasswordFeedback();
-  updateSecurityStatus();
-}
-
-function hideSettingsModal() {
-  document.getElementById('settings-modal')?.classList.add('hidden');
-  resetChangePasswordForm();
-  resetImportSelection();
+  activateSettingsPanel('settings-password');
 }
 
 function resetChangePasswordForm() {
