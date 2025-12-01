@@ -121,6 +121,7 @@ function setupEventListeners() {
   document.getElementById('reset-vault-btn')?.addEventListener('click', handleResetVault);
   document.getElementById('use-recovery')?.addEventListener('click', handleRecoveryUnlock);
 
+  
   // Main screen
   document.getElementById('logout-vault-btn')?.addEventListener('click', handleLogoutVault);
   document.getElementById('show-recovery')?.addEventListener('click', revealRecoveryKey);
@@ -131,6 +132,7 @@ function setupEventListeners() {
   document.getElementById('import-file')?.addEventListener('change', handleImportFileSelect);
   document.getElementById('import-vault')?.addEventListener('click', handleImportVault);
 
+  
   document.getElementById('add-entry-btn')?.addEventListener('click', () => {
     showAddEntryForm();
   });
@@ -153,17 +155,6 @@ function setupEventListeners() {
   document.getElementById('settings')?.addEventListener('click', showSettingsModal);
   document.getElementById('close-settings')?.addEventListener('click', hideSettingsModal);
   document.getElementById('cancel-change-password')?.addEventListener('click', hideSettingsModal);
-  document.getElementById('settings-modal')?.addEventListener('click', (event) => {
-    if (event.target?.id === 'settings-modal') {
-      hideSettingsModal();
-    }
-  });
-
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !document.getElementById('settings-modal')?.classList.contains('hidden')) {
-      hideSettingsModal();
-    }
-  });
   document.getElementById('change-password-submit')?.addEventListener('click', handleChangePassword);
   document.getElementById('change-master-password')?.addEventListener('input', updateChangePasswordFeedback);
   document.getElementById('change-confirm-password')?.addEventListener('input', updateChangePasswordFeedback);
@@ -548,17 +539,9 @@ function showSettingsModal() {
     return;
   }
 
-  chrome.runtime.sendMessage({ action: 'IS_UNLOCKED' }, (response) => {
-    if (!response?.success || !response.isUnlocked) {
-      showToast('Odblokuj sejf, aby wejść do ustawień', 'error');
-      hideSettingsModal();
-      return;
-    }
-
-    document.getElementById('settings-modal')?.classList.remove('hidden');
-    updateChangePasswordFeedback();
-    updateSecurityStatus();
-  });
+  document.getElementById('settings-modal')?.classList.remove('hidden');
+  updateChangePasswordFeedback();
+  updateSecurityStatus();
 }
 
 function hideSettingsModal() {
