@@ -2,11 +2,13 @@ import { CryptoManager } from './modules/crypto.js';
 import { StorageManager } from './modules/storage.js';
 import { AuthManager } from './modules/auth.js';
 import { TotpManager } from './modules/totp.js';
+import { WebAuthnManager } from './modules/webauthn.js';
 
 const cryptoManager = new CryptoManager();
 const storageManager = new StorageManager();
 const authManager = new AuthManager(cryptoManager, storageManager);
 const totpManager = new TotpManager();
+const webAuthnManager = new WebAuthnManager(storageManager);
 
 // Inicjalizacja przy starcie
 (async function initializeAuth() {
@@ -103,6 +105,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       handleDisableTotp(sendResponse);
       return true;
 
+    case 'GET_WEBAUTHN_STATUS':
+      handleGetWebAuthnStatus(sendResponse);
+      return true;
+
+    case 'REGISTER_WEBAUTHN':
+      handleRegisterWebAuthn(request.data, sendResponse);
+      return true;
+
+    case 'REMOVE_WEBAUTHN':
+      handleRemoveWebAuthn(sendResponse);
+      return true;
+
+    case 'START_WEBAUTHN_AUTH':
+      handleStartWebAuthnAuth(sendResponse);
+      return true;
+
     case 'REGENERATE_RECOVERY_KEY':
       handleRegenerateRecoveryKey(sendResponse);
       return true;
@@ -154,21 +172,38 @@ async function handleUnlockVault(data, sendResponse) {
     await authManager.unlockVault(data.password);
 
     const totpData = await storageManager.getSetting('totp');
-    if (totpData) {
-      if (!data.totpCode) {
-        sendResponse({ error: 'Wymagany kod TOTP', totpRequired: true });
-        return;
-      }
+    const webAuthnRegistration = await webAuthnManager.getRegistration();
+    let totpValid = false;
+    let webAuthnValid = false;
 
+    if (totpData && data.totpCode) {
       const decrypted = await cryptoManager.decryptData(
         authManager.getCurrentKey(),
         totpData.iv,
         totpData.ciphertext
       );
 
-      const valid = await totpManager.verifyTotp(decrypted.secret, data.totpCode);
-      if (!valid) {
-        sendResponse({ error: 'Nieprawidłowy kod TOTP', totpRequired: true });
+      totpValid = await totpManager.verifyTotp(decrypted.secret, data.totpCode);
+    }
+
+    if (webAuthnRegistration && data.webauthnAssertion) {
+      const verification = webAuthnManager.verifyAssertion(
+        data.webauthnAssertion,
+        webAuthnRegistration
+      );
+      webAuthnValid = verification.success;
+      if (!verification.success && verification.error) {
+        console.warn('WebAuthn verification failed:', verification.error);
+      }
+    }
+
+    if (totpData || webAuthnRegistration) {
+      if (!(totpValid || webAuthnValid)) {
+        sendResponse({
+          error: 'Wymagany kod TOTP lub potwierdzenie kluczem sprzętowym',
+          totpRequired: !!totpData,
+          webAuthnRequired: !!webAuthnRegistration
+        });
         return;
       }
     }
@@ -395,6 +430,78 @@ async function handleDisableTotp(sendResponse) {
     authManager.resetLockTimer();
     sendResponse({ success: true });
   } catch (error) {
+    sendResponse({ error: error.message });
+  }
+}
+
+async function handleGetWebAuthnStatus(sendResponse) {
+  try {
+    const registration = await webAuthnManager.getRegistration();
+    sendResponse({ success: true, enabled: !!registration, registration });
+  } catch (error) {
+    sendResponse({ error: error.message });
+  }
+}
+
+async function handleRegisterWebAuthn(data, sendResponse) {
+  try {
+    if (!authManager.isUnlocked()) {
+      throw new Error('Sejf jest zablokowany');
+    }
+
+    if (!data?.credentialId) {
+      throw new Error('Brak identyfikatora klucza');
+    }
+
+    await webAuthnManager.saveRegistration({
+      credentialId: data.credentialId,
+      transports: data.transports || [],
+      userId: data.userId,
+      createdAt: Date.now(),
+      rpId: chrome.runtime.id
+    });
+
+    authManager.resetLockTimer();
+    sendResponse({ success: true });
+  } catch (error) {
+    console.error('Register WebAuthn error:', error);
+    sendResponse({ error: error.message });
+  }
+}
+
+async function handleRemoveWebAuthn(sendResponse) {
+  try {
+    if (!authManager.isUnlocked()) {
+      throw new Error('Sejf jest zablokowany');
+    }
+
+    await webAuthnManager.clearRegistration();
+    authManager.resetLockTimer();
+    sendResponse({ success: true });
+  } catch (error) {
+    sendResponse({ error: error.message });
+  }
+}
+
+async function handleStartWebAuthnAuth(sendResponse) {
+  try {
+    const registration = await webAuthnManager.getRegistration();
+    if (!registration?.credentialId) {
+      throw new Error('Brak zarejestrowanego klucza');
+    }
+
+    const challenge = webAuthnManager.generateChallenge();
+    webAuthnManager.setActiveChallenge(challenge);
+
+    sendResponse({
+      success: true,
+      challenge,
+      credentialId: registration.credentialId,
+      transports: registration.transports || [],
+      rpId: registration.rpId || chrome.runtime.id
+    });
+  } catch (error) {
+    console.error('Start WebAuthn auth error:', error);
     sendResponse({ error: error.message });
   }
 }

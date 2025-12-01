@@ -5,6 +5,28 @@ let entries = [];
 let currentDetailEntry = null;
 let selectedBackupFile = null;
 let settingsVisibilityGuard = null;
+let loginWebAuthnAssertion = null;
+let loginAuthMethod = null;
+let loginFactorsAvailable = { totp: false, webauthn: false };
+
+function bufferToBase64url(buffer) {
+  const bytes = buffer instanceof ArrayBuffer ? new Uint8Array(buffer) : new Uint8Array(buffer.buffer);
+  let binary = '';
+  for (const b of bytes) {
+    binary += String.fromCharCode(b);
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+}
+
+function base64urlToBuffer(base64url) {
+  const padded = base64url.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(base64url.length / 4) * 4, '=');
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
 
 // Funkcja obsługi rozwijanych statystyk
 function setupExpandableStats() {
@@ -169,6 +191,14 @@ function setupEventListeners() {
   document.getElementById('regenerate-recovery-btn')?.addEventListener('click', handleRegenerateRecoveryKey);
   document.getElementById('enable-totp')?.addEventListener('click', handleEnableTotp);
   document.getElementById('disable-totp')?.addEventListener('click', handleDisableTotp);
+  document.getElementById('register-webauthn')?.addEventListener('click', handleRegisterWebAuthn);
+  document.getElementById('remove-webauthn')?.addEventListener('click', handleRemoveWebAuthn);
+  document.getElementById('login-webauthn')?.addEventListener('click', handleWebAuthnLoginAttempt);
+  document.getElementById('open-auth-modal')?.addEventListener('click', showAuthMethodModal);
+  document.getElementById('close-auth-modal')?.addEventListener('click', hideAuthMethodModal);
+  document.querySelectorAll('[data-auth-method]')?.forEach(option => {
+    option.addEventListener('click', () => selectAuthMethod(option.dataset.authMethod));
+  });
   document.getElementById('export-vault')?.addEventListener('click', handleExportVault);
   document.getElementById('import-select')?.addEventListener('click', () => document.getElementById('import-file')?.click());
   document.getElementById('import-file')?.addEventListener('change', handleImportFileSelect);
@@ -279,9 +309,14 @@ function showScreen(screenId) {
   if (screen) {
     screen.classList.add('active');
     currentScreen = screenId;
-    
+
     if (screenId === 'main-screen' || screenId === 'entry-form-screen') {
       chrome.runtime.sendMessage({ action: 'RESET_LOCK_TIMER' });
+    }
+
+    if (screenId === 'login-screen') {
+      resetLoginUi();
+      loadLoginSecurityOptions();
     }
   }
 }
@@ -354,19 +389,35 @@ async function handleLogin(e) {
   const totpCode = document.getElementById('login-totp').value.trim();
   const submitBtn = document.getElementById('unlock-submit');
   const errorDiv = document.getElementById('login-error');
-  
+
   errorDiv.classList.add('hidden');
+
+  if ((loginFactorsAvailable.totp || loginFactorsAvailable.webauthn) && !loginAuthMethod) {
+    showToast('Wybierz metodę dodatkowej weryfikacji', 'error');
+    return;
+  }
+
+  if (loginAuthMethod === 'totp' && loginFactorsAvailable.totp && !totpCode) {
+    showToast('Podaj kod TOTP, aby dokończyć logowanie', 'error');
+    return;
+  }
+
+  if (loginAuthMethod === 'webauthn' && loginFactorsAvailable.webauthn && !loginWebAuthnAssertion) {
+    showToast('Potwierdź klucz sprzętowy przed zalogowaniem', 'error');
+    return;
+  }
   
   try {
     setButtonLoading(submitBtn, true);
-    
+
     const response = await chrome.runtime.sendMessage({
       action: 'UNLOCK_VAULT',
-      data: { password, totpCode }
+      data: { password, totpCode, webauthnAssertion: loginWebAuthnAssertion }
     });
 
     if (response.success) {
       showToast('Sejf odblokowany!', 'success');
+      loginWebAuthnAssertion = null;
       showScreen('main-screen');
       await loadEntries();
     } else {
@@ -378,6 +429,9 @@ async function handleLogin(e) {
     document.getElementById('login-password').value = '';
     if (error.message?.includes('TOTP')) {
       document.getElementById('login-totp').focus();
+    }
+    if (error.message?.includes('kluczem')) {
+      loginWebAuthnAssertion = null;
     }
   } finally {
     setButtonLoading(submitBtn, false);
@@ -624,8 +678,54 @@ async function updateSecurityStatus() {
         }
       }
     }
+
+    const webAuthnStatus = await chrome.runtime.sendMessage({ action: 'GET_WEBAUTHN_STATUS' });
+    if (webAuthnStatus.success) {
+      const statusText = document.getElementById('webauthn-status-text');
+      const registerBtn = document.getElementById('register-webauthn');
+      const removeBtn = document.getElementById('remove-webauthn');
+
+      if (statusText) {
+        statusText.textContent = webAuthnStatus.enabled
+          ? 'Klucz sprzętowy jest zarejestrowany. Możesz logować się kluczem lub kodem TOTP.'
+          : 'Brak zarejestrowanego klucza sprzętowego.';
+      }
+
+      if (registerBtn) registerBtn.disabled = !!webAuthnStatus.enabled;
+      if (removeBtn) removeBtn.disabled = !webAuthnStatus.enabled;
+    }
   } catch (error) {
     console.error('Security status error:', error);
+  }
+}
+
+async function loadLoginSecurityOptions() {
+  try {
+    const [totpStatus, webAuthnStatus] = await Promise.all([
+      chrome.runtime.sendMessage({ action: 'GET_TOTP_STATUS' }),
+      chrome.runtime.sendMessage({ action: 'GET_WEBAUTHN_STATUS' })
+    ]);
+
+    loginFactorsAvailable = {
+      totp: !!totpStatus?.enabled,
+      webauthn: !!webAuthnStatus?.enabled
+    };
+
+    if (loginAuthMethod && !loginFactorsAvailable[loginAuthMethod]) {
+      loginAuthMethod = null;
+    }
+
+    if (!loginAuthMethod) {
+      if (loginFactorsAvailable.totp) {
+        loginAuthMethod = 'totp';
+      } else if (loginFactorsAvailable.webauthn) {
+        loginAuthMethod = 'webauthn';
+      }
+    }
+
+    updateLoginMethodUi();
+  } catch (error) {
+    console.error('Login factor status error:', error);
   }
 }
 
@@ -674,6 +774,14 @@ function resetImportSelection() {
   const label = document.getElementById('import-file-name');
   if (label) label.textContent = 'Brak pliku';
   selectedBackupFile = null;
+}
+
+function resetLoginUi() {
+  document.getElementById('login-password').value = '';
+  document.getElementById('login-totp').value = '';
+  loginWebAuthnAssertion = null;
+  document.getElementById('login-error')?.classList.add('hidden');
+  updateLoginMethodUi();
 }
 
 function updateChangePasswordFeedback() {
@@ -1152,6 +1260,137 @@ async function handleDisableTotp() {
   }
 }
 
+async function handleRegisterWebAuthn() {
+  const button = document.getElementById('register-webauthn');
+
+  try {
+    if (!navigator?.credentials?.create) {
+      throw new Error('Przeglądarka nie wspiera WebAuthn');
+    }
+
+    setButtonLoading(button, true);
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const userId = crypto.getRandomValues(new Uint8Array(16));
+
+    const credential = await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp: {
+          name: 'SecurePass',
+          id: chrome.runtime.id
+        },
+        user: {
+          id: userId,
+          name: 'securepass-user',
+          displayName: 'SecurePass User'
+        },
+        pubKeyCredParams: [
+          { type: 'public-key', alg: -7 },
+          { type: 'public-key', alg: -257 }
+        ],
+        timeout: 60000,
+        authenticatorSelection: { userVerification: 'preferred' }
+      }
+    });
+
+    const transports = credential.response.getTransports?.() || [];
+    const registration = {
+      credentialId: bufferToBase64url(credential.rawId),
+      transports,
+      userId: bufferToBase64url(userId)
+    };
+
+    const saveResponse = await chrome.runtime.sendMessage({
+      action: 'REGISTER_WEBAUTHN',
+      data: registration
+    });
+
+    if (!saveResponse.success) {
+      throw new Error(saveResponse.error || 'Nie udało się zapisać klucza');
+    }
+
+    showToast('Klucz sprzętowy został zarejestrowany', 'success');
+    await updateSecurityStatus();
+  } catch (error) {
+    console.error('Register WebAuthn error:', error);
+    showToast(error.message || 'Rejestracja klucza nie powiodła się', 'error');
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+async function handleRemoveWebAuthn() {
+  const button = document.getElementById('remove-webauthn');
+  try {
+    setButtonLoading(button, true);
+    const response = await chrome.runtime.sendMessage({ action: 'REMOVE_WEBAUTHN' });
+    if (response.success) {
+      showToast('Klucz sprzętowy został usunięty', 'success');
+      await updateSecurityStatus();
+    } else {
+      throw new Error(response.error);
+    }
+  } catch (error) {
+    console.error('Remove WebAuthn error:', error);
+    showToast(error.message || 'Nie udało się usunąć klucza', 'error');
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
+function serializeAssertion(assertion) {
+  return {
+    id: assertion.id,
+    rawId: bufferToBase64url(assertion.rawId),
+    clientDataJSON: bufferToBase64url(assertion.response.clientDataJSON),
+    authenticatorData: bufferToBase64url(assertion.response.authenticatorData),
+    signature: bufferToBase64url(assertion.response.signature),
+    userHandle: assertion.response.userHandle ? bufferToBase64url(assertion.response.userHandle) : null
+  };
+}
+
+async function handleWebAuthnLoginAttempt(event) {
+  event?.preventDefault();
+  const button = document.getElementById('login-webauthn');
+
+  try {
+    if (!navigator?.credentials?.get) {
+      throw new Error('Przeglądarka nie wspiera WebAuthn');
+    }
+
+    setButtonLoading(button, true);
+
+    const challenge = await chrome.runtime.sendMessage({ action: 'START_WEBAUTHN_AUTH' });
+    if (!challenge.success) {
+      throw new Error(challenge.error || 'Nie udało się przygotować uwierzytelnienia kluczem');
+    }
+
+    const publicKey = {
+      challenge: base64urlToBuffer(challenge.challenge),
+      allowCredentials: [{
+        id: base64urlToBuffer(challenge.credentialId),
+        type: 'public-key',
+        transports: challenge.transports?.length ? challenge.transports : undefined
+      }],
+      timeout: 60000,
+      userVerification: 'preferred',
+      rpId: challenge.rpId
+    };
+
+    const assertion = await navigator.credentials.get({ publicKey });
+    loginWebAuthnAssertion = serializeAssertion(assertion);
+    loginFactorsAvailable.webauthn = true;
+    showToast('Klucz sprzętowy potwierdzony — dokończ logowanie hasłem głównym', 'success');
+    selectAuthMethod('webauthn');
+  } catch (error) {
+    console.error('WebAuthn login error:', error);
+    loginWebAuthnAssertion = null;
+    showToast(error.message || 'Nie udało się użyć klucza sprzętowego', 'error');
+  } finally {
+    setButtonLoading(button, false);
+  }
+}
+
 async function handleExportVault() {
   try {
     const response = await chrome.runtime.sendMessage({ action: 'EXPORT_VAULT' });
@@ -1329,6 +1568,71 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+function showAuthMethodModal() {
+  const modal = document.getElementById('auth-method-modal');
+  if (!modal) return;
+
+  const totpOption = modal.querySelector('[data-auth-method="totp"]');
+  const webauthnOption = modal.querySelector('[data-auth-method="webauthn"]');
+
+  if (totpOption) totpOption.disabled = !loginFactorsAvailable.totp;
+  if (webauthnOption) webauthnOption.disabled = !loginFactorsAvailable.webauthn;
+
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+}
+
+function hideAuthMethodModal() {
+  const modal = document.getElementById('auth-method-modal');
+  if (!modal) return;
+  modal.classList.add('hidden');
+  modal.setAttribute('aria-hidden', 'true');
+}
+
+function selectAuthMethod(method) {
+  if (!loginFactorsAvailable[method]) {
+    return;
+  }
+  loginAuthMethod = method;
+  if (method === 'totp') {
+    loginWebAuthnAssertion = null;
+  } else if (method === 'webauthn') {
+    const totpInput = document.getElementById('login-totp');
+    if (totpInput) totpInput.value = '';
+  }
+  hideAuthMethodModal();
+  updateLoginMethodUi();
+}
+
+function updateLoginMethodUi() {
+  const label = document.getElementById('auth-method-label');
+  const desc = document.getElementById('auth-method-desc');
+  const totpRow = document.getElementById('totp-login-row');
+  const webauthnRow = document.getElementById('webauthn-login-row');
+
+  if (!label || !desc) return;
+
+  if (!loginFactorsAvailable.totp && !loginFactorsAvailable.webauthn) {
+    label.textContent = 'Brak dodatkowej weryfikacji';
+    desc.textContent = 'Możesz zalogować się samym hasłem głównym.';
+    if (totpRow) totpRow.classList.add('hidden');
+    if (webauthnRow) webauthnRow.classList.add('hidden');
+    return;
+  }
+
+  if (loginAuthMethod === 'webauthn') {
+    label.textContent = 'Wybrano: klucz sprzętowy';
+    desc.textContent = 'Dotknij klucza, a następnie wprowadź hasło główne.';
+    if (totpRow) totpRow.classList.add('hidden');
+    if (webauthnRow) webauthnRow.classList.remove('hidden');
+  } else {
+    label.textContent = 'Wybrano: kod TOTP';
+    desc.textContent = 'Wpisz bieżący 6-cyfrowy kod z aplikacji 2FA.';
+    if (totpRow) totpRow.classList.remove('hidden');
+    if (webauthnRow) webauthnRow.classList.add('hidden');
+  }
 }
 
 // Make functions available globally
