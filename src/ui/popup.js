@@ -142,8 +142,15 @@ function setupEventListeners() {
   document.getElementById('generate-quick')?.addEventListener('click', () => {
     showPasswordGenerator();
   });
-  
+
   document.getElementById('search-entries')?.addEventListener('input', handleSearch);
+
+  document.getElementById('settings')?.addEventListener('click', showSettingsModal);
+  document.getElementById('close-settings')?.addEventListener('click', hideSettingsModal);
+  document.getElementById('cancel-change-password')?.addEventListener('click', hideSettingsModal);
+  document.getElementById('change-password-submit')?.addEventListener('click', handleChangePassword);
+  document.getElementById('change-master-password')?.addEventListener('input', updateChangePasswordFeedback);
+  document.getElementById('change-confirm-password')?.addEventListener('input', updateChangePasswordFeedback);
   
   // Entry form
   document.getElementById('entry-form')?.addEventListener('submit', handleSaveEntry);
@@ -396,6 +403,19 @@ function checkPasswordMatch() {
   }
 }
 
+function evaluatePasswordStrengthValue(password) {
+  let score = 0;
+  const feedback = [];
+
+  if (password.length >= 8) score += 1; else feedback.push('co najmniej 8 znaków');
+  if (/[a-z]/.test(password)) score += 1; else feedback.push('małe litery');
+  if (/[A-Z]/.test(password)) score += 1; else feedback.push('wielkie litery');
+  if (/[0-9]/.test(password)) score += 1; else feedback.push('cyfry');
+  if (/[^A-Za-z0-9]/.test(password)) score += 1; else feedback.push('znaki specjalne');
+
+  return { score, feedback, label: ['Bardzo słabe', 'Słabe', 'Średnie', 'Silne', 'Bardzo silne'][score] };
+}
+
 // Vault management
 async function handleLogoutVault() {
   try {
@@ -501,6 +521,51 @@ async function updateSecurityStatus() {
   } catch (error) {
     console.error('Security status error:', error);
   }
+}
+
+function showSettingsModal() {
+  document.getElementById('settings-modal')?.classList.remove('hidden');
+  updateChangePasswordFeedback();
+}
+
+function hideSettingsModal() {
+  document.getElementById('settings-modal')?.classList.add('hidden');
+  resetChangePasswordForm();
+}
+
+function resetChangePasswordForm() {
+  document.getElementById('change-master-password').value = '';
+  document.getElementById('change-confirm-password').value = '';
+  document.getElementById('regenerate-recovery').checked = false;
+  const feedback = document.getElementById('change-password-feedback');
+  if (feedback) feedback.textContent = '';
+  setButtonLoading(document.getElementById('change-password-submit'), false);
+}
+
+function updateChangePasswordFeedback() {
+  const feedback = document.getElementById('change-password-feedback');
+  if (!feedback) return;
+
+  const password = document.getElementById('change-master-password').value;
+  const confirm = document.getElementById('change-confirm-password').value;
+
+  if (!password) {
+    feedback.textContent = 'Wprowadź nowe hasło aby zobaczyć jego siłę.';
+    return;
+  }
+
+  const strength = evaluatePasswordStrengthValue(password);
+  const messages = [`Siła: ${strength.label}`];
+
+  if (strength.feedback.length) {
+    messages.push('Brakuje: ' + strength.feedback.join(', '));
+  }
+
+  if (confirm.length > 0) {
+    messages.push(password === confirm ? 'Hasła są zgodne' : 'Hasła nie są zgodne');
+  }
+
+  feedback.textContent = messages.join(' | ');
 }
 
 function displayEntries(entriesToShow) {
@@ -927,6 +992,51 @@ async function handleDisableTotp() {
   } catch (error) {
     console.error('Disable TOTP error:', error);
     showToast('Nie udało się wyłączyć TOTP', 'error');
+  }
+}
+
+async function handleChangePassword(e) {
+  if (e) e.preventDefault();
+
+  const newPassword = document.getElementById('change-master-password').value;
+  const confirm = document.getElementById('change-confirm-password').value;
+  const regenerateRecoveryKey = document.getElementById('regenerate-recovery').checked;
+  const submitBtn = document.getElementById('change-password-submit');
+
+  const strength = evaluatePasswordStrengthValue(newPassword);
+  if (strength.score < 3) {
+    showToast('Hasło jest zbyt słabe – wzmocnij je', 'error');
+    return;
+  }
+
+  if (newPassword !== confirm) {
+    showToast('Hasła nie są zgodne', 'error');
+    return;
+  }
+
+  try {
+    setButtonLoading(submitBtn, true);
+    const response = await chrome.runtime.sendMessage({
+      action: 'CHANGE_MASTER_PASSWORD',
+      data: { newPassword, regenerateRecoveryKey }
+    });
+
+    if (response.success) {
+      showToast('Hasło główne zostało zmienione', 'success');
+      if (regenerateRecoveryKey && response.recoveryKey) {
+        await copyToClipboard(response.recoveryKey);
+        alert(`Nowy klucz odzyskiwania:\n${response.recoveryKey}`);
+      }
+      hideSettingsModal();
+      await updateSecurityStatus();
+    } else {
+      throw new Error(response.error);
+    }
+  } catch (error) {
+    console.error('Change password error:', error);
+    showToast('Nie udało się zmienić hasła: ' + error.message, 'error');
+  } finally {
+    setButtonLoading(submitBtn, false);
   }
 }
 

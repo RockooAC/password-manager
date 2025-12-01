@@ -552,3 +552,37 @@ textarea {
   margin-top: 6px;
   word-break: break-all;
 }
+
+.settings-modal {
+  max-width: 520px;
+}
+
+.settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.settings-section {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.settings-section .section-header {
+  margin-bottom: 12px;
+}
+
+.settings-section .form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}

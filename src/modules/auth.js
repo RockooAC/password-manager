@@ -248,5 +248,104 @@ export class AuthManager {
         throw new Error('Nie można przywrócić sesji');
       }
     }
+
+    async changeMasterPassword(newPassword, options = {}) {
+      if (!this.isUnlocked()) {
+        throw new Error('Sejf jest zablokowany');
+      }
+
+      const { regenerateRecoveryKey = false } = options;
+
+      const oldKey = this.currentKey;
+      const currentConfig = await this.storage.getVaultConfig();
+      const entries = await this.storage.getAllEntries();
+      const decryptedEntries = [];
+
+      for (const entry of entries) {
+        if (entry.isTestEntry) continue;
+        const decrypted = await this.crypto.decryptData(oldKey, entry.iv, entry.ciphertext);
+        decryptedEntries.push({
+          id: entry.id,
+          data: decrypted,
+          created: entry.created,
+          modified: entry.modified
+        });
+      }
+
+      const encryptedRecovery = await this.storage.getSetting('recoveryKey');
+      if (!encryptedRecovery) {
+        throw new Error('Brak klucza odzyskiwania do zmiany hasła');
+      }
+      const recoveryData = await this.crypto.decryptData(
+        oldKey,
+        encryptedRecovery.iv,
+        encryptedRecovery.ciphertext
+      );
+
+      let recoveryKey = recoveryData.recoveryKey;
+      if (regenerateRecoveryKey) {
+        recoveryKey = this.generateRecoveryKey();
+      }
+
+      const totpSetting = await this.storage.getSetting('totp');
+      let totpData = null;
+      if (totpSetting) {
+        totpData = await this.crypto.decryptData(oldKey, totpSetting.iv, totpSetting.ciphertext);
+      }
+
+      const newSalt = await this.crypto.generateSalt();
+      const newKey = await this.crypto.deriveKey(newPassword, newSalt);
+
+      const recoverySalt = await this.crypto.generateSalt();
+      const recoveryDerivation = await this.crypto.deriveKey(recoveryKey, recoverySalt);
+      const keyJwk = await this.crypto.exportKeyToJWK(newKey);
+      const recoveryWrap = await this.crypto.encryptData(recoveryDerivation, keyJwk);
+
+      for (const entry of decryptedEntries) {
+        const encrypted = await this.crypto.encryptData(newKey, {
+          ...entry.data,
+          created: entry.created,
+          modified: Date.now()
+        });
+
+        await this.storage.saveEntry({
+          id: entry.id,
+          ...encrypted,
+          url: entry.data.url,
+          created: entry.created,
+          modified: Date.now()
+        });
+      }
+
+      const testData = { test: 'vault_initialized', timestamp: Date.now() };
+      const encryptedTest = await this.crypto.encryptData(newKey, testData);
+      await this.storage.saveEntry({
+        id: 'test_entry',
+        ...encryptedTest,
+        isTestEntry: true
+      });
+
+      const encryptedRecoveryKey = await this.crypto.encryptData(newKey, { recoveryKey });
+      await this.storage.saveSetting('recoveryKey', encryptedRecoveryKey);
+
+      if (totpData) {
+        const encryptedTotp = await this.crypto.encryptData(newKey, totpData);
+        await this.storage.saveSetting('totp', encryptedTotp);
+      }
+
+      await this.storage.saveVaultConfig({
+        salt: Array.from(newSalt),
+        iterations: this.crypto.kdfParams.iterations,
+        created: currentConfig?.created || Date.now(),
+        recoverySalt: Array.from(recoverySalt),
+        recoveryWrap
+      });
+
+      this.currentKey = newKey;
+      this.isLocked = false;
+      this.startLockTimer();
+
+      return { recoveryKey };
+    }
   }
   

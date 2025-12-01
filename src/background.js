@@ -102,6 +102,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     case 'DISABLE_TOTP':
       handleDisableTotp(sendResponse);
       return true;
+
+    case 'CHANGE_MASTER_PASSWORD':
+      handleChangeMasterPassword(request.data, sendResponse);
+      return true;
+
       
     default:
       sendResponse({ error: 'Unknown action' });
@@ -377,6 +382,25 @@ async function handleDisableTotp(sendResponse) {
     await storageManager.saveSetting('totp', null);
     authManager.resetLockTimer();
     sendResponse({ success: true });
+  } catch (error) {
+    sendResponse({ error: error.message });
+  }
+}
+
+async function handleChangeMasterPassword(data, sendResponse) {
+  try {
+    if (!data?.newPassword) {
+      throw new Error('Brak nowego hasła');
+    }
+
+    const result = await authManager.changeMasterPassword(data.newPassword, {
+      regenerateRecoveryKey: data.regenerateRecoveryKey
+    });
+
+    const sessionData = await authManager.exportSession();
+    await chrome.storage.session.set({ 'securepass_session': sessionData });
+
+    sendResponse({ success: true, recoveryKey: result.recoveryKey });
   } catch (error) {
     sendResponse({ error: error.message });
   }
