@@ -1,10 +1,12 @@
 import { CryptoManager } from './modules/crypto.js';
 import { StorageManager } from './modules/storage.js';
 import { AuthManager } from './modules/auth.js';
+import { TotpManager } from './modules/totp.js';
 
 const cryptoManager = new CryptoManager();
 const storageManager = new StorageManager();
 const authManager = new AuthManager(cryptoManager, storageManager);
+const totpManager = new TotpManager();
 
 // Inicjalizacja przy starcie
 (async function initializeAuth() {
@@ -43,6 +45,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     case 'UNLOCK_VAULT':
       handleUnlockVault(request.data, sendResponse);
       return true;
+
+    case 'UNLOCK_WITH_RECOVERY':
+      handleUnlockWithRecovery(request.data, sendResponse);
+      return true;
       
     case 'LOCK_VAULT':
       handleLockVault(sendResponse);
@@ -76,11 +82,39 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     case 'RESET_VAULT':
       handleResetVault(sendResponse);
       return true;
-      
+
     case 'GET_ENTRIES_FOR_URL':
       handleGetEntriesForUrl(request.data, sendResponse);
       return true;
-      
+
+    case 'GET_RECOVERY_KEY':
+      handleGetRecoveryKey(sendResponse);
+      return true;
+
+    case 'GET_TOTP_STATUS':
+      handleGetTotpStatus(sendResponse);
+      return true;
+
+    case 'ENABLE_TOTP':
+      handleEnableTotp(sendResponse);
+      return true;
+
+    case 'DISABLE_TOTP':
+      handleDisableTotp(sendResponse);
+      return true;
+
+    case 'CHANGE_MASTER_PASSWORD':
+      handleChangeMasterPassword(request.data, sendResponse);
+      return true;
+
+    case 'EXPORT_VAULT':
+      handleExportVault(sendResponse);
+      return true;
+
+    case 'IMPORT_VAULT':
+      handleImportVault(request.data, sendResponse);
+      return true;
+
     default:
       sendResponse({ error: 'Unknown action' });
       return false;
@@ -98,13 +132,13 @@ async function handleCheckVaultExists(sendResponse) {
 
 async function handleInitializeVault(data, sendResponse) {
   try {
-    await authManager.initializeVault(data.password);
-    
+    const initResult = await authManager.initializeVault(data.password);
+
     // Zapisz sesję
     const sessionData = await authManager.exportSession();
     await chrome.storage.session.set({ 'securepass_session': sessionData });
-    
-    sendResponse({ success: true });
+
+    sendResponse({ success: true, recoveryKey: initResult?.recoveryKey });
   } catch (error) {
     sendResponse({ error: error.message });
   }
@@ -113,7 +147,27 @@ async function handleInitializeVault(data, sendResponse) {
 async function handleUnlockVault(data, sendResponse) {
   try {
     await authManager.unlockVault(data.password);
-    
+
+    const totpData = await storageManager.getSetting('totp');
+    if (totpData) {
+      if (!data.totpCode) {
+        sendResponse({ error: 'Wymagany kod TOTP', totpRequired: true });
+        return;
+      }
+
+      const decrypted = await cryptoManager.decryptData(
+        authManager.getCurrentKey(),
+        totpData.iv,
+        totpData.ciphertext
+      );
+
+      const valid = await totpManager.verifyTotp(decrypted.secret, data.totpCode);
+      if (!valid) {
+        sendResponse({ error: 'Nieprawidłowy kod TOTP', totpRequired: true });
+        return;
+      }
+    }
+
     // Zapisz sesję
     const sessionData = await authManager.exportSession();
     await chrome.storage.session.set({ 'securepass_session': sessionData });
@@ -128,6 +182,19 @@ async function handleLockVault(sendResponse) {
   try {
     authManager.lockVault();
     await chrome.storage.session.remove('securepass_session');
+    sendResponse({ success: true });
+  } catch (error) {
+    sendResponse({ error: error.message });
+  }
+}
+
+async function handleUnlockWithRecovery(data, sendResponse) {
+  try {
+    await authManager.unlockWithRecoveryKey(data.recoveryKey);
+
+    const sessionData = await authManager.exportSession();
+    await chrome.storage.session.set({ 'securepass_session': sessionData });
+
     sendResponse({ success: true });
   } catch (error) {
     sendResponse({ error: error.message });
@@ -270,6 +337,132 @@ async function handleGetEntriesForUrl(data, sendResponse) {
     
     authManager.resetLockTimer();
     sendResponse({ success: true, entries: matchingEntries });
+  } catch (error) {
+    sendResponse({ error: error.message });
+  }
+}
+
+async function handleGetRecoveryKey(sendResponse) {
+  try {
+    const recoveryKey = await authManager.getRecoveryKey();
+    sendResponse({ success: true, recoveryKey });
+  } catch (error) {
+    sendResponse({ error: error.message });
+  }
+}
+
+async function handleGetTotpStatus(sendResponse) {
+  try {
+    const totpData = await storageManager.getSetting('totp');
+    sendResponse({ success: true, enabled: !!totpData });
+  } catch (error) {
+    sendResponse({ error: error.message });
+  }
+}
+
+async function handleEnableTotp(sendResponse) {
+  try {
+    if (!authManager.isUnlocked()) {
+      throw new Error('Sejf jest zablokowany');
+    }
+
+    const secretData = totpManager.generateSecret();
+    const encrypted = await cryptoManager.encryptData(authManager.getCurrentKey(), {
+      secret: secretData.secret
+    });
+
+    await storageManager.saveSetting('totp', encrypted);
+    authManager.resetLockTimer();
+
+    sendResponse({ success: true, ...secretData });
+  } catch (error) {
+    sendResponse({ error: error.message });
+  }
+}
+
+async function handleDisableTotp(sendResponse) {
+  try {
+    if (!authManager.isUnlocked()) {
+      throw new Error('Sejf jest zablokowany');
+    }
+
+    await storageManager.saveSetting('totp', null);
+    authManager.resetLockTimer();
+    sendResponse({ success: true });
+  } catch (error) {
+    sendResponse({ error: error.message });
+  }
+}
+
+async function handleChangeMasterPassword(data, sendResponse) {
+  try {
+    if (!data?.newPassword) {
+      throw new Error('Brak nowego hasła');
+    }
+
+    const result = await authManager.changeMasterPassword(data.newPassword, {
+      regenerateRecoveryKey: data.regenerateRecoveryKey
+    });
+
+    const sessionData = await authManager.exportSession();
+    await chrome.storage.session.set({ 'securepass_session': sessionData });
+
+    sendResponse({ success: true, recoveryKey: result.recoveryKey });
+  } catch (error) {
+    sendResponse({ error: error.message });
+  }
+}
+
+async function handleExportVault(sendResponse) {
+  try {
+    if (!authManager.isUnlocked()) {
+      throw new Error('Sejf jest zablokowany');
+    }
+
+    const backup = {
+      version: 1,
+      exportedAt: Date.now(),
+      config: await storageManager.getVaultConfig(),
+      entries: await storageManager.getAllEntries(),
+      settings: await storageManager.getAllSettings()
+    };
+
+    sendResponse({ success: true, backup });
+  } catch (error) {
+    sendResponse({ error: error.message });
+  }
+}
+
+async function handleImportVault(data, sendResponse) {
+  try {
+    if (!authManager.isUnlocked()) {
+      throw new Error('Sejf jest zablokowany');
+    }
+
+    if (!data?.backup) {
+      throw new Error('Brak danych kopii');
+    }
+
+    const { config, entries = [], settings = [] } = data.backup;
+    if (!config) {
+      throw new Error('Brak konfiguracji sejfu w kopii');
+    }
+
+    const testEntry = entries.find(entry => entry.id === 'test_entry');
+    if (testEntry) {
+      await cryptoManager.decryptData(
+        authManager.getCurrentKey(),
+        testEntry.iv,
+        testEntry.ciphertext
+      );
+    }
+
+    await storageManager.replaceAllData({ config, entries, settings });
+
+    const sessionData = await authManager.exportSession();
+    await chrome.storage.session.set({ 'securepass_session': sessionData });
+
+    sendResponse({ success: true });
   } catch (error) {
     sendResponse({ error: error.message });
   }
