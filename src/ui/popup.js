@@ -4,6 +4,7 @@ let currentEntryId = null;
 let entries = [];
 let currentDetailEntry = null;
 let selectedBackupFile = null;
+let settingsVisibilityGuard = null;
 
 // Funkcja obsługi rozwijanych statystyk
 function setupExpandableStats() {
@@ -81,6 +82,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   forceHideSettingsModal();
   showScreen('loading-screen');
+
+  // Fail-safe in case initialization hangs (e.g., runtime message not resolving)
+  setTimeout(() => {
+    if (currentScreen === 'loading-screen') {
+      showToast('Nie udało się zakończyć ładowania. Spróbuj ponownie.', 'error');
+      showScreen('welcome-screen');
+    }
+  }, 5000);
 
   setTimeout(async () => {
     await initializeApp();
