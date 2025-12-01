@@ -57,6 +57,24 @@ function triggerInputEvent(element) {
     element.dispatchEvent(changeEvent);
 }
 
+function hideSettingsModal() {
+  const modal = document.getElementById('settings-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+  resetChangePasswordForm();
+  resetImportSelection();
+}
+
+function forceHideSettingsModal() {
+  const modal = document.getElementById('settings-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+}
+
 // Initialize app
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('Popup initialized');
