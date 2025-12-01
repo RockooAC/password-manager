@@ -215,6 +215,8 @@ function setupEventListeners() {
 
 // Screen management
 function showScreen(screenId) {
+  hideSettingsModal();
+
   document.querySelectorAll('.screen').forEach(screen => {
     screen.classList.remove('active');
   });
@@ -427,6 +429,7 @@ function evaluatePasswordStrengthValue(password) {
 async function handleLogoutVault() {
   try {
     await chrome.runtime.sendMessage({ action: 'LOCK_VAULT' });
+    hideSettingsModal();
     showToast('Wylogowano z sejfu', 'success');
     showScreen('login-screen');
     document.getElementById('login-password').value = '';
@@ -531,6 +534,11 @@ async function updateSecurityStatus() {
 }
 
 function showSettingsModal() {
+  if (currentScreen !== 'main-screen') {
+    showToast('Odblokuj sejf, aby otworzyć ustawienia', 'error');
+    return;
+  }
+
   document.getElementById('settings-modal')?.classList.remove('hidden');
   updateChangePasswordFeedback();
   updateSecurityStatus();
