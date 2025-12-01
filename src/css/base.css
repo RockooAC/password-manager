@@ -111,6 +111,10 @@ h3 {
   margin-bottom: 12px;
 }
 
+.muted {
+  color: #475569;
+}
+
 /* Utility classes */
 .hidden {
   display: none !important;
