@@ -655,7 +655,7 @@ function showSettingsModal() {
 
   document.getElementById('settings-modal')?.classList.remove('hidden');
   updateChangePasswordFeedback();
-  activateSettingsPanel('settings-password');
+  updateSecurityStatus();
 }
 
 function resetChangePasswordForm() {
