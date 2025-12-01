@@ -27,17 +27,29 @@ function setupExpandableStats() {
             <div class="stat-label">Silne hasła</div>
           </div>
         </div>
+        <div class="stat-subheader">Słabe hasła</div>
+        <div id="weak-passwords-list" class="weak-list"></div>
       </div>
     `;
     
     // Dodaj obsługę kliknięcia
     const statsHeader = statsPanel.querySelector('.stats-header');
     const statsToggle = statsPanel.querySelector('.stats-toggle');
-    
+    const weakList = statsPanel.querySelector('#weak-passwords-list');
+
     if (statsHeader && statsToggle) {
       statsHeader.addEventListener('click', () => {
         statsPanel.classList.toggle('expanded');
         statsToggle.textContent = statsPanel.classList.contains('expanded') ? '▲' : '▼';
+      });
+    }
+
+    if (weakList) {
+      weakList.addEventListener('click', (event) => {
+        const target = event.target.closest('.weak-item');
+        if (target?.dataset.id) {
+          editEntry(target.dataset.id);
+        }
       });
     }
   }
@@ -187,7 +199,8 @@ function setupEventListeners() {
   document.getElementById('change-password-submit')?.addEventListener('click', handleChangePassword);
   document.getElementById('change-master-password')?.addEventListener('input', updateChangePasswordFeedback);
   document.getElementById('change-confirm-password')?.addEventListener('input', updateChangePasswordFeedback);
-  
+  setupSettingsTabs();
+
   // Entry form
   document.getElementById('entry-form')?.addEventListener('submit', handleSaveEntry);
   
@@ -239,6 +252,17 @@ function setupEventListeners() {
   // Generator checkboxes
   document.querySelectorAll('#generator-modal input[type="checkbox"]').forEach(checkbox => {
     checkbox.addEventListener('change', generateNewPassword);
+  });
+}
+
+function setupSettingsTabs() {
+  const tabs = document.querySelectorAll('.settings-tab');
+  if (!tabs.length) return;
+
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      activateSettingsPanel(tab.dataset.target);
+    });
   });
 }
 
@@ -527,7 +551,8 @@ async function loadEntries() {
 function updateStats() {
   const totalElement = document.getElementById('total-passwords');
   const strongElement = document.getElementById('strong-passwords');
-  
+  const weakList = document.getElementById('weak-passwords-list');
+
   if (totalElement) {
     totalElement.textContent = entries.length || 0;
   }
@@ -542,8 +567,35 @@ function updateStats() {
              /[0-9]/.test(password) && 
              /[^A-Za-z0-9]/.test(password);
     }).length;
-    
+
     strongElement.textContent = strongCount;
+  }
+
+  if (weakList) {
+    const weakEntries = entries.filter(entry => {
+      const password = entry.password || '';
+      if (!password) return false;
+      const { score } = evaluatePasswordStrengthValue(password);
+      return score <= 2;
+    });
+
+    if (weakEntries.length === 0) {
+      weakList.innerHTML = '<div class="muted">Brak słabych haseł 🎉</div>';
+    } else {
+      weakList.innerHTML = weakEntries.map(entry => {
+        const { label } = evaluatePasswordStrengthValue(entry.password || '');
+        const usernameOrUrl = entry.username || entry.url || 'Brak danych';
+        return `
+          <div class="weak-item" data-id="${entry.id}">
+            <div>
+              <div class="weak-item-title">${escapeHtml(entry.title || 'Bez tytułu')}</div>
+              <div class="weak-item-subtitle">${escapeHtml(usernameOrUrl)}</div>
+            </div>
+            <div class="weak-badge">${label}</div>
+          </div>
+        `;
+      }).join('');
+    }
   }
 }
 
@@ -576,6 +628,25 @@ async function updateSecurityStatus() {
   }
 }
 
+function activateSettingsPanel(targetId) {
+  if (!targetId) return;
+
+  const tabs = document.querySelectorAll('.settings-tab');
+  const panels = document.querySelectorAll('.settings-panel');
+
+  tabs.forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.target === targetId);
+  });
+
+  panels.forEach(panel => {
+    panel.classList.toggle('active', panel.id === targetId);
+  });
+
+  if (targetId === 'settings-security') {
+    updateSecurityStatus();
+  }
+}
+
 function showSettingsModal() {
   if (currentScreen !== 'main-screen') {
     showToast('Odblokuj sejf, aby otworzyć ustawienia', 'error');
@@ -584,13 +655,7 @@ function showSettingsModal() {
 
   document.getElementById('settings-modal')?.classList.remove('hidden');
   updateChangePasswordFeedback();
-  updateSecurityStatus();
-}
-
-function hideSettingsModal() {
-  document.getElementById('settings-modal')?.classList.add('hidden');
-  resetChangePasswordForm();
-  resetImportSelection();
+  activateSettingsPanel('settings-password');
 }
 
 function resetChangePasswordForm() {
