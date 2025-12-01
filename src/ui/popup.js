@@ -587,12 +587,6 @@ function showSettingsModal() {
   updateSecurityStatus();
 }
 
-function hideSettingsModal() {
-  document.getElementById('settings-modal')?.classList.add('hidden');
-  resetChangePasswordForm();
-  resetImportSelection();
-}
-
 function resetChangePasswordForm() {
   document.getElementById('change-master-password').value = '';
   document.getElementById('change-confirm-password').value = '';
