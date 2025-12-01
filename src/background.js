@@ -107,6 +107,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       handleChangeMasterPassword(request.data, sendResponse);
       return true;
 
+    case 'EXPORT_VAULT':
+      handleExportVault(sendResponse);
+      return true;
+
+    case 'IMPORT_VAULT':
+      handleImportVault(request.data, sendResponse);
+      return true;
+
       
     default:
       sendResponse({ error: 'Unknown action' });
@@ -401,6 +409,61 @@ async function handleChangeMasterPassword(data, sendResponse) {
     await chrome.storage.session.set({ 'securepass_session': sessionData });
 
     sendResponse({ success: true, recoveryKey: result.recoveryKey });
+  } catch (error) {
+    sendResponse({ error: error.message });
+  }
+}
+
+async function handleExportVault(sendResponse) {
+  try {
+    if (!authManager.isUnlocked()) {
+      throw new Error('Sejf jest zablokowany');
+    }
+
+    const backup = {
+      version: 1,
+      exportedAt: Date.now(),
+      config: await storageManager.getVaultConfig(),
+      entries: await storageManager.getAllEntries(),
+      settings: await storageManager.getAllSettings()
+    };
+
+    sendResponse({ success: true, backup });
+  } catch (error) {
+    sendResponse({ error: error.message });
+  }
+}
+
+async function handleImportVault(data, sendResponse) {
+  try {
+    if (!authManager.isUnlocked()) {
+      throw new Error('Sejf jest zablokowany');
+    }
+
+    if (!data?.backup) {
+      throw new Error('Brak danych kopii');
+    }
+
+    const { config, entries = [], settings = [] } = data.backup;
+    if (!config) {
+      throw new Error('Brak konfiguracji sejfu w kopii');
+    }
+
+    const testEntry = entries.find(entry => entry.id === 'test_entry');
+    if (testEntry) {
+      await cryptoManager.decryptData(
+        authManager.getCurrentKey(),
+        testEntry.iv,
+        testEntry.ciphertext
+      );
+    }
+
+    await storageManager.replaceAllData({ config, entries, settings });
+
+    const sessionData = await authManager.exportSession();
+    await chrome.storage.session.set({ 'securepass_session': sessionData });
+
+    sendResponse({ success: true });
   } catch (error) {
     sendResponse({ error: error.message });
   }

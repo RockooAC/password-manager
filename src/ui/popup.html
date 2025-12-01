@@ -156,10 +156,6 @@
       <div class="left-panel">
         <div class="panel-header">
           <h2>🔐 Twoje hasła</h2>
-          <div class="vault-status">
-            <span class="status-indicator">🔓</span>
-            <span>Odblokowany</span>
-          </div>
         </div>
         
         <div class="search-container">
@@ -202,10 +198,6 @@
             <button class="action-item" id="generate-quick">
               <div class="action-icon">🎲</div>
               <div class="action-text">Generuj hasło</div>
-            </button>
-            <button class="action-item" id="export-data">
-              <div class="action-icon">📤</div>
-              <div class="action-text">Eksport</div>
             </button>
             <button class="action-item" id="settings">
               <div class="action-icon">⚙️</div>
@@ -440,6 +432,124 @@
 
   <!-- Settings Modal -->
   <div id="settings-modal" class="modal hidden">
+      <div class="modal-content settings-modal">
+        <div class="modal-header">
+          <h3>⚙️ Ustawienia</h3>
+          <button id="close-settings" class="btn-icon">❌</button>
+        </div>
+
+        <div class="settings-content">
+          <section class="settings-section">
+            <div class="section-header">
+              <h4>Zmiana hasła głównego</h4>
+              <p class="muted">Odblokuj sejf (również kluczem odzyskiwania), a następnie ustaw nowe hasło.</p>
+            </div>
+
+            <div class="form-grid">
+              <div class="input-group">
+                <label for="change-master-password">Nowe hasło główne</label>
+                <input type="password" id="change-master-password" placeholder="Wprowadź nowe hasło">
+              </div>
+              <div class="input-group">
+                <label for="change-confirm-password">Potwierdź hasło</label>
+                <input type="password" id="change-confirm-password" placeholder="Powtórz nowe hasło">
+              </div>
+            </div>
+
+            <div id="change-password-feedback" class="muted"></div>
+
+            <label class="checkbox-label">
+              <input type="checkbox" id="regenerate-recovery">
+              <span class="checkmark"></span>
+              Wygeneruj nowy klucz odzyskiwania
+            </label>
+
+            <div class="settings-actions">
+              <button id="change-password-submit" class="btn-primary">
+                <span class="btn-text">💾 Zapisz nowe hasło</span>
+                <div class="btn-spinner hidden"></div>
+              </button>
+              <button id="cancel-change-password" class="btn-secondary">Anuluj</button>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <div class="section-header">
+              <h4>Kopia i przenoszenie danych</h4>
+              <p class="muted">Eksport tworzony jest w formie zaszyfrowanej kopii, import wymaga odblokowanego sejfu.</p>
+            </div>
+
+            <div class="backup-grid">
+              <div class="backup-card">
+                <div>
+                  <h5>Eksport sejfu</h5>
+                  <p class="muted">Pobierz kopię zapasową wszystkich wpisów i ustawień.</p>
+                </div>
+                <button id="export-vault" class="btn-primary">📤 Eksportuj</button>
+              </div>
+
+              <div class="backup-card">
+                <div class="import-header">
+                  <div>
+                    <h5>Import sejfu</h5>
+                    <p class="muted">Wgraj plik JSON wygenerowany z eksportu. Nadpisze aktualne dane.</p>
+                  </div>
+                  <span class="file-chip" id="import-file-name">Brak pliku</span>
+                </div>
+                <div class="import-actions">
+                  <input type="file" id="import-file" accept="application/json" class="hidden">
+                  <button id="import-select" class="btn-secondary">📂 Wybierz plik</button>
+                  <button id="import-vault" class="btn-primary">📥 Importuj</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="settings-section">
+            <div class="section-header">
+              <h4>Bezpieczeństwo</h4>
+              <p class="muted">Zarządzaj mechanizmami odzyskiwania i dodatkowymi formami uwierzytelniania.</p>
+            </div>
+
+            <div class="security-grid">
+              <div class="security-tile">
+                <div>
+                  <strong>Klucz odzyskiwania</strong>
+                  <p class="muted">Trzymaj w bezpiecznym miejscu; pozwala odblokować sejf bez hasła.</p>
+                </div>
+                <button id="show-recovery" class="btn-secondary">📄 Pokaż klucz</button>
+              </div>
+
+              <div class="security-tile">
+                <div class="tile-header">
+                  <div>
+                    <strong>Weryfikacja TOTP</strong>
+                    <p class="muted" id="totp-status-text">TOTP jest wyłączony.</p>
+                  </div>
+                  <div class="security-actions">
+                    <button id="enable-totp" class="btn-primary">⏱️ Włącz</button>
+                    <button id="disable-totp" class="btn-secondary">✖️ Wyłącz</button>
+                  </div>
+                </div>
+                <div id="totp-secret-box" class="hidden">
+                  <p class="muted">Sekret TOTP (zachowaj w poufności):</p>
+                  <div class="code-box" id="totp-secret"></div>
+                  <div class="code-box" id="totp-otpauth"></div>
+                </div>
+              </div>
+
+              <div class="security-tile disabled">
+                <div>
+                  <strong>Klucz sprzętowy</strong>
+                  <p class="muted">Wsparcie dla WebAuthn zostanie dodane po dostępności klucza sprzętowego.</p>
+                </div>
+                <button class="btn-secondary" disabled>🔒 Wkrótce</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
     <div class="modal-content settings-modal">
       <div class="modal-header">
         <h3>⚙️ Ustawienia</h3>

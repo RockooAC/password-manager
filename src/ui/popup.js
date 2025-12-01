@@ -3,6 +3,7 @@ let currentScreen = 'loading-screen';
 let currentEntryId = null;
 let entries = [];
 let currentDetailEntry = null;
+let selectedBackupFile = null;
 
 // Funkcja obsługi rozwijanych statystyk
 function setupExpandableStats() {
@@ -119,12 +120,18 @@ function setupEventListeners() {
   document.getElementById('login-form')?.addEventListener('submit', handleLogin);
   document.getElementById('reset-vault-btn')?.addEventListener('click', handleResetVault);
   document.getElementById('use-recovery')?.addEventListener('click', handleRecoveryUnlock);
+
   
   // Main screen
   document.getElementById('logout-vault-btn')?.addEventListener('click', handleLogoutVault);
   document.getElementById('show-recovery')?.addEventListener('click', revealRecoveryKey);
   document.getElementById('enable-totp')?.addEventListener('click', handleEnableTotp);
   document.getElementById('disable-totp')?.addEventListener('click', handleDisableTotp);
+  document.getElementById('export-vault')?.addEventListener('click', handleExportVault);
+  document.getElementById('import-select')?.addEventListener('click', () => document.getElementById('import-file')?.click());
+  document.getElementById('import-file')?.addEventListener('change', handleImportFileSelect);
+  document.getElementById('import-vault')?.addEventListener('click', handleImportVault);
+
   
   document.getElementById('add-entry-btn')?.addEventListener('click', () => {
     showAddEntryForm();
@@ -526,11 +533,13 @@ async function updateSecurityStatus() {
 function showSettingsModal() {
   document.getElementById('settings-modal')?.classList.remove('hidden');
   updateChangePasswordFeedback();
+  updateSecurityStatus();
 }
 
 function hideSettingsModal() {
   document.getElementById('settings-modal')?.classList.add('hidden');
   resetChangePasswordForm();
+  resetImportSelection();
 }
 
 function resetChangePasswordForm() {
@@ -540,6 +549,14 @@ function resetChangePasswordForm() {
   const feedback = document.getElementById('change-password-feedback');
   if (feedback) feedback.textContent = '';
   setButtonLoading(document.getElementById('change-password-submit'), false);
+}
+
+function resetImportSelection() {
+  const fileInput = document.getElementById('import-file');
+  if (fileInput) fileInput.value = '';
+  const label = document.getElementById('import-file-name');
+  if (label) label.textContent = 'Brak pliku';
+  selectedBackupFile = null;
 }
 
 function updateChangePasswordFeedback() {
@@ -992,6 +1009,71 @@ async function handleDisableTotp() {
   } catch (error) {
     console.error('Disable TOTP error:', error);
     showToast('Nie udało się wyłączyć TOTP', 'error');
+  }
+}
+
+async function handleExportVault() {
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'EXPORT_VAULT' });
+    if (response.success && response.backup) {
+      const blob = new Blob([JSON.stringify(response.backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `securepass-backup-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      showToast('Eksport zakończony – plik został pobrany', 'success');
+    } else {
+      throw new Error(response.error || 'Brak danych do eksportu');
+    }
+  } catch (error) {
+    console.error('Export error:', error);
+    showToast('Nie udało się wyeksportować sejfu: ' + error.message, 'error');
+  }
+}
+
+function handleImportFileSelect(event) {
+  const file = event.target.files?.[0];
+  selectedBackupFile = file || null;
+
+  const label = document.getElementById('import-file-name');
+  if (label) {
+    label.textContent = file ? file.name : 'Brak pliku';
+  }
+}
+
+async function handleImportVault() {
+  if (!selectedBackupFile) {
+    showToast('Wybierz plik kopii do importu', 'error');
+    return;
+  }
+
+  if (!confirm('Import nadpisze aktualne wpisy i ustawienia. Kontynuować?')) {
+    return;
+  }
+
+  try {
+    const fileText = await selectedBackupFile.text();
+    const parsed = JSON.parse(fileText);
+    const backup = parsed.backup || parsed;
+
+    const response = await chrome.runtime.sendMessage({
+      action: 'IMPORT_VAULT',
+      data: { backup }
+    });
+
+    if (response.success) {
+      showToast('Import zakończony – dane zostały wczytane', 'success');
+      await loadEntries();
+      hideSettingsModal();
+      resetImportSelection();
+    } else {
+      throw new Error(response.error);
+    }
+  } catch (error) {
+    console.error('Import error:', error);
+    showToast('Nie udało się zaimportować kopii: ' + error.message, 'error');
   }
 }
 
