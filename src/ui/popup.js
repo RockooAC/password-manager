@@ -4,6 +4,7 @@ let currentEntryId = null;
 let entries = [];
 let currentDetailEntry = null;
 let selectedBackupFile = null;
+let settingsVisibilityGuard = null;
 
 // Funkcja obsługi rozwijanych statystyk
 function setupExpandableStats() {
