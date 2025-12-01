@@ -60,14 +60,16 @@ function triggerInputEvent(element) {
 // Initialize app
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('Popup initialized');
-  
+
+  forceHideSettingsModal();
   showScreen('loading-screen');
-  
+
   setTimeout(async () => {
     await initializeApp();
   }, 1000);
-  
+
   setupEventListeners();
+  setupSettingsGuard();
 });
 
 async function initializeApp() {
@@ -230,6 +232,20 @@ function showScreen(screenId) {
       chrome.runtime.sendMessage({ action: 'RESET_LOCK_TIMER' });
     }
   }
+}
+
+function setupSettingsGuard() {
+  if (settingsVisibilityGuard) return;
+
+  settingsVisibilityGuard = setInterval(() => {
+    const modal = document.getElementById('settings-modal');
+
+    // If we are not on the main screen or modal somehow stayed open, force it closed
+    if (!modal) return;
+    if (currentScreen !== 'main-screen' && !modal.classList.contains('hidden')) {
+      forceHideSettingsModal();
+    }
+  }, 500);
 }
 
 // Registration handling
