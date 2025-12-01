@@ -5,6 +5,12 @@
   margin-bottom: 16px;
 }
 
+.input-group.login-alt {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .input-group label {
   display: block;
   margin-bottom: 6px;
@@ -66,6 +72,10 @@ textarea {
 
 .password-input-container .btn-icon:nth-last-child(2) {
   right: 45px;
+}
+
+.small-text {
+  font-size: 0.8rem;
 }
 
 /* Button components - KOMPAKTOWE */
