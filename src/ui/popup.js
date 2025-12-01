@@ -118,9 +118,13 @@ function setupEventListeners() {
   // Login screen
   document.getElementById('login-form')?.addEventListener('submit', handleLogin);
   document.getElementById('reset-vault-btn')?.addEventListener('click', handleResetVault);
+  document.getElementById('use-recovery')?.addEventListener('click', handleRecoveryUnlock);
   
   // Main screen
   document.getElementById('logout-vault-btn')?.addEventListener('click', handleLogoutVault);
+  document.getElementById('show-recovery')?.addEventListener('click', revealRecoveryKey);
+  document.getElementById('enable-totp')?.addEventListener('click', handleEnableTotp);
+  document.getElementById('disable-totp')?.addEventListener('click', handleDisableTotp);
   
   document.getElementById('add-entry-btn')?.addEventListener('click', () => {
     showAddEntryForm();
@@ -241,6 +245,10 @@ async function handleRegistration(e) {
     
     if (response.success) {
       showToast('Sejf został utworzony pomyślnie!', 'success');
+      if (response.recoveryKey) {
+        await copyToClipboard(response.recoveryKey);
+        alert(`Zapisz klucz odzyskiwania:\n${response.recoveryKey}`);
+      }
       showScreen('main-screen');
       await loadEntries();
     } else {
@@ -259,6 +267,7 @@ async function handleLogin(e) {
   e.preventDefault();
   
   const password = document.getElementById('login-password').value;
+  const totpCode = document.getElementById('login-totp').value.trim();
   const submitBtn = document.getElementById('unlock-submit');
   const errorDiv = document.getElementById('login-error');
   
@@ -269,9 +278,9 @@ async function handleLogin(e) {
     
     const response = await chrome.runtime.sendMessage({
       action: 'UNLOCK_VAULT',
-      data: { password }
+      data: { password, totpCode }
     });
-    
+
     if (response.success) {
       showToast('Sejf odblokowany!', 'success');
       showScreen('main-screen');
@@ -283,6 +292,41 @@ async function handleLogin(e) {
     console.error('Login error:', error);
     errorDiv.classList.remove('hidden');
     document.getElementById('login-password').value = '';
+    if (error.message?.includes('TOTP')) {
+      document.getElementById('login-totp').focus();
+    }
+  } finally {
+    setButtonLoading(submitBtn, false);
+  }
+}
+
+async function handleRecoveryUnlock() {
+  const recoveryKey = document.getElementById('recovery-key').value.trim();
+  const submitBtn = document.getElementById('use-recovery');
+  const errorDiv = document.getElementById('login-error');
+
+  if (!recoveryKey) {
+    showToast('Podaj klucz odzyskiwania', 'error');
+    return;
+  }
+
+  try {
+    setButtonLoading(submitBtn, true);
+    const response = await chrome.runtime.sendMessage({
+      action: 'UNLOCK_WITH_RECOVERY',
+      data: { recoveryKey }
+    });
+
+    if (response.success) {
+      showToast('Odblokowano za pomocą klucza odzyskiwania', 'success');
+      showScreen('main-screen');
+      await loadEntries();
+    } else {
+      throw new Error(response.error);
+    }
+  } catch (error) {
+    console.error('Recovery unlock error:', error);
+    errorDiv.classList.remove('hidden');
   } finally {
     setButtonLoading(submitBtn, false);
   }
@@ -396,6 +440,7 @@ async function loadEntries() {
       entries = response.entries || [];
       displayEntries(entries);
       updateStats();
+      await updateSecurityStatus();
     } else {
       throw new Error(response.error);
     }
@@ -426,6 +471,35 @@ function updateStats() {
     }).length;
     
     strongElement.textContent = strongCount;
+  }
+}
+
+async function updateSecurityStatus() {
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'GET_TOTP_STATUS' });
+    if (response.success) {
+      const statusText = document.getElementById('totp-status-text');
+      const enableBtn = document.getElementById('enable-totp');
+      const disableBtn = document.getElementById('disable-totp');
+
+      if (statusText) {
+        statusText.textContent = response.enabled ? 'TOTP jest włączony.' : 'TOTP jest wyłączony.';
+      }
+
+      if (enableBtn) enableBtn.disabled = !!response.enabled;
+      if (disableBtn) disableBtn.disabled = !response.enabled;
+
+      if (!response.enabled) {
+        const secretBox = document.getElementById('totp-secret-box');
+        if (secretBox) {
+          secretBox.classList.add('hidden');
+          document.getElementById('totp-secret').textContent = '';
+          document.getElementById('totp-otpauth').textContent = '';
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Security status error:', error);
   }
 }
 
@@ -805,6 +879,55 @@ function useGeneratedPassword() {
   document.getElementById('entry-password').value = password;
   hidePasswordGenerator();
   showToast('Hasło użyte!', 'success');
+}
+
+async function revealRecoveryKey() {
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'GET_RECOVERY_KEY' });
+    if (response.success) {
+      await copyToClipboard(response.recoveryKey);
+      alert(`Klucz odzyskiwania:\n${response.recoveryKey}`);
+    } else {
+      throw new Error(response.error);
+    }
+  } catch (error) {
+    console.error('Recovery key error:', error);
+    showToast('Nie udało się pobrać klucza', 'error');
+  }
+}
+
+async function handleEnableTotp() {
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'ENABLE_TOTP' });
+    if (response.success) {
+      document.getElementById('totp-secret-box')?.classList.remove('hidden');
+      document.getElementById('totp-secret').textContent = response.secret;
+      document.getElementById('totp-otpauth').textContent = response.otpauthUrl;
+      await updateSecurityStatus();
+      showToast('TOTP włączony – dodaj sekret do aplikacji 2FA', 'success');
+    } else {
+      throw new Error(response.error);
+    }
+  } catch (error) {
+    console.error('Enable TOTP error:', error);
+    showToast('Nie udało się włączyć TOTP', 'error');
+  }
+}
+
+async function handleDisableTotp() {
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'DISABLE_TOTP' });
+    if (response.success) {
+      document.getElementById('totp-secret-box')?.classList.add('hidden');
+      await updateSecurityStatus();
+      showToast('TOTP został wyłączony', 'success');
+    } else {
+      throw new Error(response.error);
+    }
+  } catch (error) {
+    console.error('Disable TOTP error:', error);
+    showToast('Nie udało się wyłączyć TOTP', 'error');
+  }
 }
 
 // Utility functions

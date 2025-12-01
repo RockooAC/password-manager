@@ -507,3 +507,48 @@ textarea {
   border-color: var(--error);
   background: rgba(245, 101, 101, 0.2);
 }
+
+.recovery-box {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(8px);
+}
+
+.recovery-box .muted {
+  margin: 6px 0;
+  color: #cbd5e1;
+}
+
+.security-card {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--card-bg);
+  box-shadow: var(--shadow-light);
+  border: 1px solid var(--glass-border);
+}
+
+.security-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.security-actions button {
+  margin-left: 6px;
+}
+
+.code-box {
+  background: var(--glass-bg);
+  border: 1px dashed var(--accent);
+  padding: 8px;
+  border-radius: 10px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  margin-top: 6px;
+  word-break: break-all;
+}

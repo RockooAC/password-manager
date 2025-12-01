@@ -114,11 +114,26 @@
               <label for="login-password">Hasło główne</label>
               <input type="password" id="login-password" required placeholder="Wprowadź hasło główne">
             </div>
-            
-            <div id="login-error" class="error-message hidden">
-              Nieprawidłowe hasło główne
+
+            <div class="input-group">
+              <label for="login-totp">Kod TOTP (jeśli włączony)</label>
+              <input type="text" id="login-totp" inputmode="numeric" pattern="[0-9]*" placeholder="6-cyfrowy kod z aplikacji">
             </div>
-            
+
+            <div id="login-error" class="error-message hidden">
+              Nieprawidłowe dane logowania
+            </div>
+
+            <div class="recovery-box">
+              <h4>Odzyskiwanie dostępu</h4>
+              <p class="muted">Użyj klucza odzyskiwania jeśli nie pamiętasz hasła głównego.</p>
+              <div class="input-group">
+                <label for="recovery-key">Klucz odzyskiwania</label>
+                <input type="text" id="recovery-key" placeholder="XXXXXX-XXXXXX-XXXXXX-XXXXXX">
+              </div>
+              <button type="button" class="btn-secondary" id="use-recovery">🔑 Odblokuj kluczem</button>
+            </div>
+
             <div class="form-actions">
               <button type="submit" class="btn-primary" id="unlock-submit">
                 <span class="btn-text">🔓 Odblokuj</span>
@@ -198,7 +213,35 @@
             </button>
           </div>
         </div>
-        
+
+        <div class="security-card">
+          <h3>Bezpieczeństwo</h3>
+          <div class="security-controls">
+            <div class="security-item">
+              <div>
+                <strong>Klucz odzyskiwania</strong>
+                <p class="muted">Zapisz go w bezpiecznym miejscu, pozwala odzyskać dostęp.</p>
+              </div>
+              <button id="show-recovery" class="btn-secondary">📄 Pokaż klucz</button>
+            </div>
+            <div class="security-item">
+              <div>
+                <strong>Weryfikacja TOTP</strong>
+                <p class="muted" id="totp-status-text">TOTP jest wyłączony.</p>
+              </div>
+              <div class="security-actions">
+                <button id="enable-totp" class="btn-primary">⏱️ Włącz</button>
+                <button id="disable-totp" class="btn-secondary">✖️ Wyłącz</button>
+              </div>
+              <div id="totp-secret-box" class="hidden">
+                <p class="muted">Sekret TOTP (zachowaj w poufności):</p>
+                <div class="code-box" id="totp-secret"></div>
+                <div class="code-box" id="totp-otpauth"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="stats-panel">
           <h3>Statystyki</h3>
           <div class="stats-grid">
