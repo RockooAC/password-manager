@@ -115,6 +115,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       handleImportVault(request.data, sendResponse);
       return true;
 
+      
     default:
       sendResponse({ error: 'Unknown action' });
       return false;

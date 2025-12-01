@@ -4,7 +4,6 @@ let currentEntryId = null;
 let entries = [];
 let currentDetailEntry = null;
 let selectedBackupFile = null;
-let settingsVisibilityGuard = null;
 
 // Funkcja obsługi rozwijanych statystyk
 function setupExpandableStats() {
@@ -124,6 +123,7 @@ function setupEventListeners() {
   document.getElementById('reset-vault-btn')?.addEventListener('click', handleResetVault);
   document.getElementById('use-recovery')?.addEventListener('click', handleRecoveryUnlock);
 
+  
   // Main screen
   document.getElementById('logout-vault-btn')?.addEventListener('click', handleLogoutVault);
   document.getElementById('show-recovery')?.addEventListener('click', revealRecoveryKey);
@@ -134,6 +134,7 @@ function setupEventListeners() {
   document.getElementById('import-file')?.addEventListener('change', handleImportFileSelect);
   document.getElementById('import-vault')?.addEventListener('click', handleImportVault);
 
+  
   document.getElementById('add-entry-btn')?.addEventListener('click', () => {
     showAddEntryForm();
   });
@@ -156,17 +157,6 @@ function setupEventListeners() {
   document.getElementById('settings')?.addEventListener('click', showSettingsModal);
   document.getElementById('close-settings')?.addEventListener('click', hideSettingsModal);
   document.getElementById('cancel-change-password')?.addEventListener('click', hideSettingsModal);
-  document.getElementById('settings-modal')?.addEventListener('click', (event) => {
-    if (event.target?.id === 'settings-modal') {
-      hideSettingsModal();
-    }
-  });
-
-  document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !document.getElementById('settings-modal')?.classList.contains('hidden')) {
-      hideSettingsModal();
-    }
-  });
   document.getElementById('change-password-submit')?.addEventListener('click', handleChangePassword);
   document.getElementById('change-master-password')?.addEventListener('input', updateChangePasswordFeedback);
   document.getElementById('change-confirm-password')?.addEventListener('input', updateChangePasswordFeedback);
@@ -565,39 +555,15 @@ function showSettingsModal() {
     return;
   }
 
-  chrome.runtime.sendMessage({ action: 'IS_UNLOCKED' }, (response) => {
-    if (!response?.success || !response.isUnlocked) {
-      showToast('Odblokuj sejf, aby wejść do ustawień', 'error');
-      forceHideSettingsModal();
-      return;
-    }
-
-    const modal = document.getElementById('settings-modal');
-    if (modal) {
-      modal.classList.remove('hidden');
-      modal.setAttribute('aria-hidden', 'false');
-    }
-    updateChangePasswordFeedback();
-    updateSecurityStatus();
-  });
+  document.getElementById('settings-modal')?.classList.remove('hidden');
+  updateChangePasswordFeedback();
+  updateSecurityStatus();
 }
 
 function hideSettingsModal() {
-  const modal = document.getElementById('settings-modal');
-  if (modal) {
-    modal.classList.add('hidden');
-    modal.setAttribute('aria-hidden', 'true');
-  }
+  document.getElementById('settings-modal')?.classList.add('hidden');
   resetChangePasswordForm();
   resetImportSelection();
-}
-
-function forceHideSettingsModal() {
-  const modal = document.getElementById('settings-modal');
-  if (modal) {
-    modal.classList.add('hidden');
-    modal.setAttribute('aria-hidden', 'true');
-  }
 }
 
 function resetChangePasswordForm() {
