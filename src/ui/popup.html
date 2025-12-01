@@ -115,9 +115,25 @@
               <input type="password" id="login-password" required placeholder="Wprowadź hasło główne">
             </div>
 
-            <div class="input-group">
-              <label for="login-totp">Kod TOTP (jeśli włączony)</label>
-              <input type="text" id="login-totp" inputmode="numeric" pattern="[0-9]*" placeholder="6-cyfrowy kod z aplikacji">
+            <div class="auth-method-card">
+              <div class="auth-method-header">
+                <div>
+                  <p class="muted small-text">Dodatkowa weryfikacja</p>
+                  <strong id="auth-method-label">Wybierz metodę</strong>
+                  <p class="muted small-text" id="auth-method-desc">Kod TOTP lub klucz sprzętowy — wystarczy jeden.</p>
+                </div>
+                <button type="button" class="btn-secondary" id="open-auth-modal">Wybierz</button>
+              </div>
+              <div id="totp-login-row" class="auth-method-body hidden">
+                <div class="input-group compact">
+                  <label for="login-totp">Kod TOTP</label>
+                  <input type="text" id="login-totp" inputmode="numeric" pattern="[0-9]*" placeholder="6-cyfrowy kod z aplikacji">
+                </div>
+              </div>
+              <div id="webauthn-login-row" class="auth-method-body hidden">
+                <p class="muted small-text">Zaloguj się, potwierdzając sprzętowy klucz bezpieczeństwa.</p>
+                <button type="button" class="btn-primary full-width" id="login-webauthn">🔑 Użyj klucza sprzętowego</button>
+              </div>
             </div>
 
             <div class="input-group login-alt">
@@ -545,6 +561,31 @@
 
   <!-- Toast notifications -->
   <div id="toast-container" class="toast-container"></div>
+
+  <div id="auth-method-modal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Wybierz metodę logowania</h3>
+        <button type="button" class="btn-icon" id="close-auth-modal">✖️</button>
+      </div>
+      <div class="auth-options">
+        <button type="button" class="auth-option" data-auth-method="totp">
+          <div class="option-icon">⏱️</div>
+          <div>
+            <strong>Kod TOTP</strong>
+            <p class="muted small-text">Wpisz 6-cyfrowy kod z aplikacji 2FA.</p>
+          </div>
+        </button>
+        <button type="button" class="auth-option" data-auth-method="webauthn">
+          <div class="option-icon">🔑</div>
+          <div>
+            <strong>Klucz sprzętowy</strong>
+            <p class="muted small-text">Potwierdź fizyczny klucz bezpieczeństwa.</p>
+          </div>
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Scripts -->
   <script type="module" src="popup.js"></script>

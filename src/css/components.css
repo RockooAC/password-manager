@@ -155,6 +155,10 @@ textarea {
   transform: translateY(-1px);
 }
 
+.full-width {
+  width: 100%;
+}
+
 /* Settings and backup layouts */
 .backup-grid {
   display: grid;
@@ -233,9 +237,119 @@ textarea {
   gap: 8px;
 }
 
+.security-actions.equal {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
 .recovery-tile .security-actions {
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.hardware-tile {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+  background: linear-gradient(135deg, rgba(123, 97, 255, 0.18), rgba(103, 126, 234, 0.2));
+  border-color: rgba(123, 97, 255, 0.25);
+}
+
+.hardware-tile .tile-main {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.hardware-tile .tile-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-size: 1.2rem;
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-light);
+}
+
+.hardware-tile .chip-label {
+  margin: 0 0 6px 0;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.hardware-tile .security-actions button {
+  height: 42px;
+}
+
+.auth-method-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: var(--shadow-light);
+  margin-bottom: 14px;
+}
+
+.auth-method-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.auth-method-body {
+  margin-top: 12px;
+}
+
+.auth-method-body .btn-primary {
+  justify-content: center;
+}
+
+.auth-options {
+  display: grid;
+  gap: 12px;
+}
+
+.auth-option {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  color: white;
+  box-shadow: var(--shadow-light);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.auth-option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.auth-option:not(:disabled):hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+.option-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.25);
+  display: grid;
+  place-items: center;
+  font-size: 1.1rem;
+  color: white;
+}
+
+.auth-method-card .muted {
+  margin: 2px 0;
 }
 
 /* Form actions - KOMPAKTOWE */

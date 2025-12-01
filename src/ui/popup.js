@@ -302,9 +302,14 @@ function showScreen(screenId) {
   if (screen) {
     screen.classList.add('active');
     currentScreen = screenId;
-    
+
     if (screenId === 'main-screen' || screenId === 'entry-form-screen') {
       chrome.runtime.sendMessage({ action: 'RESET_LOCK_TIMER' });
+    }
+
+    if (screenId === 'login-screen') {
+      resetLoginUi();
+      loadLoginSecurityOptions();
     }
   }
 }
@@ -377,8 +382,23 @@ async function handleLogin(e) {
   const totpCode = document.getElementById('login-totp').value.trim();
   const submitBtn = document.getElementById('unlock-submit');
   const errorDiv = document.getElementById('login-error');
-  
+
   errorDiv.classList.add('hidden');
+
+  if ((loginFactorsAvailable.totp || loginFactorsAvailable.webauthn) && !loginAuthMethod) {
+    showToast('Wybierz metodę dodatkowej weryfikacji', 'error');
+    return;
+  }
+
+  if (loginAuthMethod === 'totp' && loginFactorsAvailable.totp && !totpCode) {
+    showToast('Podaj kod TOTP, aby dokończyć logowanie', 'error');
+    return;
+  }
+
+  if (loginAuthMethod === 'webauthn' && loginFactorsAvailable.webauthn && !loginWebAuthnAssertion) {
+    showToast('Potwierdź klucz sprzętowy przed zalogowaniem', 'error');
+    return;
+  }
   
   try {
     setButtonLoading(submitBtn, true);
@@ -672,6 +692,36 @@ async function updateSecurityStatus() {
   }
 }
 
+async function loadLoginSecurityOptions() {
+  try {
+    const [totpStatus, webAuthnStatus] = await Promise.all([
+      chrome.runtime.sendMessage({ action: 'GET_TOTP_STATUS' }),
+      chrome.runtime.sendMessage({ action: 'GET_WEBAUTHN_STATUS' })
+    ]);
+
+    loginFactorsAvailable = {
+      totp: !!totpStatus?.enabled,
+      webauthn: !!webAuthnStatus?.enabled
+    };
+
+    if (loginAuthMethod && !loginFactorsAvailable[loginAuthMethod]) {
+      loginAuthMethod = null;
+    }
+
+    if (!loginAuthMethod) {
+      if (loginFactorsAvailable.totp) {
+        loginAuthMethod = 'totp';
+      } else if (loginFactorsAvailable.webauthn) {
+        loginAuthMethod = 'webauthn';
+      }
+    }
+
+    updateLoginMethodUi();
+  } catch (error) {
+    console.error('Login factor status error:', error);
+  }
+}
+
 function activateSettingsPanel(targetId) {
   if (!targetId) return;
 
@@ -717,6 +767,14 @@ function resetImportSelection() {
   const label = document.getElementById('import-file-name');
   if (label) label.textContent = 'Brak pliku';
   selectedBackupFile = null;
+}
+
+function resetLoginUi() {
+  document.getElementById('login-password').value = '';
+  document.getElementById('login-totp').value = '';
+  loginWebAuthnAssertion = null;
+  document.getElementById('login-error')?.classList.add('hidden');
+  updateLoginMethodUi();
 }
 
 function updateChangePasswordFeedback() {
@@ -1501,6 +1559,71 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+function showAuthMethodModal() {
+  const modal = document.getElementById('auth-method-modal');
+  if (!modal) return;
+
+  const totpOption = modal.querySelector('[data-auth-method="totp"]');
+  const webauthnOption = modal.querySelector('[data-auth-method="webauthn"]');
+
+  if (totpOption) totpOption.disabled = !loginFactorsAvailable.totp;
+  if (webauthnOption) webauthnOption.disabled = !loginFactorsAvailable.webauthn;
+
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+}
+
+function hideAuthMethodModal() {
+  const modal = document.getElementById('auth-method-modal');
+  if (!modal) return;
+  modal.classList.add('hidden');
+  modal.setAttribute('aria-hidden', 'true');
+}
+
+function selectAuthMethod(method) {
+  if (!loginFactorsAvailable[method]) {
+    return;
+  }
+  loginAuthMethod = method;
+  if (method === 'totp') {
+    loginWebAuthnAssertion = null;
+  } else if (method === 'webauthn') {
+    const totpInput = document.getElementById('login-totp');
+    if (totpInput) totpInput.value = '';
+  }
+  hideAuthMethodModal();
+  updateLoginMethodUi();
+}
+
+function updateLoginMethodUi() {
+  const label = document.getElementById('auth-method-label');
+  const desc = document.getElementById('auth-method-desc');
+  const totpRow = document.getElementById('totp-login-row');
+  const webauthnRow = document.getElementById('webauthn-login-row');
+
+  if (!label || !desc) return;
+
+  if (!loginFactorsAvailable.totp && !loginFactorsAvailable.webauthn) {
+    label.textContent = 'Brak dodatkowej weryfikacji';
+    desc.textContent = 'Możesz zalogować się samym hasłem głównym.';
+    if (totpRow) totpRow.classList.add('hidden');
+    if (webauthnRow) webauthnRow.classList.add('hidden');
+    return;
+  }
+
+  if (loginAuthMethod === 'webauthn') {
+    label.textContent = 'Wybrano: klucz sprzętowy';
+    desc.textContent = 'Dotknij klucza, a następnie wprowadź hasło główne.';
+    if (totpRow) totpRow.classList.add('hidden');
+    if (webauthnRow) webauthnRow.classList.remove('hidden');
+  } else {
+    label.textContent = 'Wybrano: kod TOTP';
+    desc.textContent = 'Wpisz bieżący 6-cyfrowy kod z aplikacji 2FA.';
+    if (totpRow) totpRow.classList.remove('hidden');
+    if (webauthnRow) webauthnRow.classList.add('hidden');
+  }
 }
 
 // Make functions available globally
