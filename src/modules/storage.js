@@ -151,7 +151,7 @@ export class StorageManager {
   
     async getSetting(name) {
       if (!this.db) await this.initDB();
-      
+
       return new Promise((resolve, reject) => {
         try {
           const transaction = this.db.transaction(['settings'], 'readonly');
@@ -161,6 +161,27 @@ export class StorageManager {
           request.onsuccess = () => resolve(request.result?.value);
           request.onerror = (event) => {
             console.error('Error getting setting:', event.target.error);
+            reject(event.target.error);
+          };
+        } catch (error) {
+          console.error('Transaction error:', error);
+          reject(error);
+        }
+      });
+    }
+
+    async getAllSettings() {
+      if (!this.db) await this.initDB();
+
+      return new Promise((resolve, reject) => {
+        try {
+          const transaction = this.db.transaction(['settings'], 'readonly');
+          const store = transaction.objectStore('settings');
+          const request = store.getAll();
+
+          request.onsuccess = () => resolve((request.result || []).map(item => ({ name: item.name, value: item.value })));
+          request.onerror = (event) => {
+            console.error('Error getting all settings:', event.target.error);
             reject(event.target.error);
           };
         } catch (error) {
@@ -193,7 +214,7 @@ export class StorageManager {
   
     async getVaultConfig() {
       if (!this.db) await this.initDB();
-      
+
       return new Promise((resolve, reject) => {
         try {
           const transaction = this.db.transaction(['vault'], 'readonly');
@@ -210,6 +231,26 @@ export class StorageManager {
           reject(error);
         }
       });
+    }
+
+    async replaceAllData({ config, entries = [], settings = [] }) {
+      if (!this.db) await this.initDB();
+
+      await this.clearAllData();
+
+      for (const entry of entries) {
+        await this.saveEntry(entry);
+      }
+
+      for (const setting of settings) {
+        if (setting?.name) {
+          await this.saveSetting(setting.name, setting.value);
+        }
+      }
+
+      if (config) {
+        await this.saveVaultConfig(config);
+      }
     }
   
     async clearAllData() {
