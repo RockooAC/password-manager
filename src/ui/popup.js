@@ -121,6 +121,7 @@ function setupEventListeners() {
   document.getElementById('reset-vault-btn')?.addEventListener('click', handleResetVault);
   document.getElementById('use-recovery')?.addEventListener('click', handleRecoveryUnlock);
 
+  
   // Main screen
   document.getElementById('logout-vault-btn')?.addEventListener('click', handleLogoutVault);
   document.getElementById('show-recovery')?.addEventListener('click', revealRecoveryKey);
@@ -131,6 +132,7 @@ function setupEventListeners() {
   document.getElementById('import-file')?.addEventListener('change', handleImportFileSelect);
   document.getElementById('import-vault')?.addEventListener('click', handleImportVault);
 
+  
   document.getElementById('add-entry-btn')?.addEventListener('click', () => {
     showAddEntryForm();
   });
