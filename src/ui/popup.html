@@ -437,13 +437,11 @@
 
               <div id="change-password-feedback" class="muted"></div>
 
-              <div class="settings-checkbox">
-                <label class="checkbox-label">
-                  <input type="checkbox" id="regenerate-recovery">
-                  <span class="checkmark"></span>
-                  Wygeneruj nowy klucz odzyskiwania
-                </label>
-              </div>
+              <label class="checkbox-label">
+                <input type="checkbox" id="regenerate-recovery">
+                <span class="checkmark"></span>
+                Wygeneruj nowy klucz odzyskiwania
+              </label>
 
               <div class="settings-actions">
                 <button id="change-password-submit" class="btn-primary">
@@ -493,18 +491,12 @@
               </div>
 
               <div class="security-grid">
-                <div class="security-tile recovery-tile">
+                <div class="security-tile">
                   <div>
                     <strong>Klucz odzyskiwania</strong>
                     <p class="muted">Trzymaj w bezpiecznym miejscu; pozwala odblokować sejf bez hasła.</p>
                   </div>
-                  <div class="security-actions">
-                    <button id="show-recovery" class="btn-secondary">📄 Pokaż klucz</button>
-                    <button id="regenerate-recovery-btn" class="btn-primary">
-                      <span class="btn-text">🔄 Nowy klucz</span>
-                      <div class="btn-spinner hidden"></div>
-                    </button>
-                  </div>
+                  <button id="show-recovery" class="btn-secondary">📄 Pokaż klucz</button>
                 </div>
 
                 <div class="security-tile">
