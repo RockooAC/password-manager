@@ -136,6 +136,12 @@
               </div>
             </div>
 
+            <div class="input-group login-alt">
+              <label>Alternatywnie</label>
+              <button type="button" class="btn-secondary" id="login-webauthn">🔑 Użyj klucza sprzętowego</button>
+              <p class="muted small-text">Jeśli skonfigurowano TOTP i klucz, wystarczy jeden z mechanizmów.</p>
+            </div>
+
             <div id="login-error" class="error-message hidden">
               Nieprawidłowe dane logowania
             </div>
@@ -533,19 +539,18 @@
                   </div>
                 </div>
 
-                <div class="security-tile hardware-tile">
-                  <div class="tile-main">
-                    <div class="tile-icon">🔑</div>
+                <div class="security-tile">
+                  <div class="tile-header">
                     <div>
-                      <p class="chip-label">Klucz sprzętowy (WebAuthn)</p>
+                      <strong>Klucz sprzętowy (WebAuthn)</strong>
                       <p class="muted" id="webauthn-status-text">Brak zarejestrowanego klucza sprzętowego.</p>
-                      <p class="muted small-text">Podczas logowania wystarczy kod TOTP <strong>lub</strong> potwierdzenie kluczem sprzętowym.</p>
+                    </div>
+                    <div class="security-actions">
+                      <button id="register-webauthn" class="btn-primary">🔑 Zarejestruj</button>
+                      <button id="remove-webauthn" class="btn-secondary">✖️ Usuń</button>
                     </div>
                   </div>
-                  <div class="security-actions equal">
-                    <button id="register-webauthn" class="btn-primary">🔑 Zarejestruj</button>
-                    <button id="remove-webauthn" class="btn-secondary">✖️ Usuń</button>
-                  </div>
+                  <p class="muted small-text">Podczas logowania wystarczy kod TOTP <strong>lub</strong> potwierdzenie kluczem sprzętowym.</p>
                 </div>
               </div>
             </section>

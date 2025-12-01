@@ -11,10 +11,6 @@
   gap: 6px;
 }
 
-.input-group.compact {
-  margin-bottom: 0;
-}
-
 .input-group label {
   display: block;
   margin-bottom: 6px;

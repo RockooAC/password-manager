@@ -6,8 +6,6 @@ let currentDetailEntry = null;
 let selectedBackupFile = null;
 let settingsVisibilityGuard = null;
 let loginWebAuthnAssertion = null;
-let loginAuthMethod = null;
-let loginFactorsAvailable = { totp: false, webauthn: false };
 
 function bufferToBase64url(buffer) {
   const bytes = buffer instanceof ArrayBuffer ? new Uint8Array(buffer) : new Uint8Array(buffer.buffer);
@@ -194,11 +192,6 @@ function setupEventListeners() {
   document.getElementById('register-webauthn')?.addEventListener('click', handleRegisterWebAuthn);
   document.getElementById('remove-webauthn')?.addEventListener('click', handleRemoveWebAuthn);
   document.getElementById('login-webauthn')?.addEventListener('click', handleWebAuthnLoginAttempt);
-  document.getElementById('open-auth-modal')?.addEventListener('click', showAuthMethodModal);
-  document.getElementById('close-auth-modal')?.addEventListener('click', hideAuthMethodModal);
-  document.querySelectorAll('[data-auth-method]')?.forEach(option => {
-    option.addEventListener('click', () => selectAuthMethod(option.dataset.authMethod));
-  });
   document.getElementById('export-vault')?.addEventListener('click', handleExportVault);
   document.getElementById('import-select')?.addEventListener('click', () => document.getElementById('import-file')?.click());
   document.getElementById('import-file')?.addEventListener('change', handleImportFileSelect);
@@ -1379,9 +1372,7 @@ async function handleWebAuthnLoginAttempt(event) {
 
     const assertion = await navigator.credentials.get({ publicKey });
     loginWebAuthnAssertion = serializeAssertion(assertion);
-    loginFactorsAvailable.webauthn = true;
     showToast('Klucz sprzętowy potwierdzony — dokończ logowanie hasłem głównym', 'success');
-    selectAuthMethod('webauthn');
   } catch (error) {
     console.error('WebAuthn login error:', error);
     loginWebAuthnAssertion = null;
