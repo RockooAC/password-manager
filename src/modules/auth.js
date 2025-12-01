@@ -347,5 +347,35 @@ export class AuthManager {
 
       return { recoveryKey };
     }
+
+    async regenerateRecoveryKey() {
+      if (!this.isUnlocked()) {
+        throw new Error('Sejf jest zablokowany');
+      }
+
+      const config = await this.storage.getVaultConfig();
+      if (!config) {
+        throw new Error('Brak konfiguracji sejfu');
+      }
+
+      const recoveryKey = this.generateRecoveryKey();
+      const recoverySalt = await this.crypto.generateSalt();
+      const recoveryDerivation = await this.crypto.deriveKey(recoveryKey, recoverySalt);
+      const keyJwk = await this.crypto.exportKeyToJWK(this.currentKey);
+      const recoveryWrap = await this.crypto.encryptData(recoveryDerivation, keyJwk);
+
+      const encryptedRecoveryKey = await this.crypto.encryptData(this.currentKey, { recoveryKey });
+
+      await this.storage.saveVaultConfig({
+        ...config,
+        recoverySalt: Array.from(recoverySalt),
+        recoveryWrap
+      });
+
+      await this.storage.saveSetting('recoveryKey', encryptedRecoveryKey);
+      this.resetLockTimer();
+
+      return recoveryKey;
+    }
   }
   

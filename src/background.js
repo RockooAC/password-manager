@@ -103,6 +103,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       handleDisableTotp(sendResponse);
       return true;
 
+    case 'REGENERATE_RECOVERY_KEY':
+      handleRegenerateRecoveryKey(sendResponse);
+      return true;
+
     case 'CHANGE_MASTER_PASSWORD':
       handleChangeMasterPassword(request.data, sendResponse);
       return true;
@@ -409,6 +413,15 @@ async function handleChangeMasterPassword(data, sendResponse) {
     await chrome.storage.session.set({ 'securepass_session': sessionData });
 
     sendResponse({ success: true, recoveryKey: result.recoveryKey });
+  } catch (error) {
+    sendResponse({ error: error.message });
+  }
+}
+
+async function handleRegenerateRecoveryKey(sendResponse) {
+  try {
+    const recoveryKey = await authManager.regenerateRecoveryKey();
+    sendResponse({ success: true, recoveryKey });
   } catch (error) {
     sendResponse({ error: error.message });
   }

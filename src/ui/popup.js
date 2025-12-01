@@ -166,6 +166,7 @@ function setupEventListeners() {
   // Main screen
   document.getElementById('logout-vault-btn')?.addEventListener('click', handleLogoutVault);
   document.getElementById('show-recovery')?.addEventListener('click', revealRecoveryKey);
+  document.getElementById('regenerate-recovery-btn')?.addEventListener('click', handleRegenerateRecoveryKey);
   document.getElementById('enable-totp')?.addEventListener('click', handleEnableTotp);
   document.getElementById('disable-totp')?.addEventListener('click', handleDisableTotp);
   document.getElementById('export-vault')?.addEventListener('click', handleExportVault);
@@ -1091,6 +1092,29 @@ async function revealRecoveryKey() {
   } catch (error) {
     console.error('Recovery key error:', error);
     showToast('Nie udało się pobrać klucza', 'error');
+  }
+}
+
+async function handleRegenerateRecoveryKey() {
+  const button = document.getElementById('regenerate-recovery-btn');
+
+  try {
+    setButtonLoading(button, true);
+    const response = await chrome.runtime.sendMessage({ action: 'REGENERATE_RECOVERY_KEY' });
+
+    if (response.success) {
+      await copyToClipboard(response.recoveryKey);
+      showToast('Wygenerowano nowy klucz – został skopiowany', 'success');
+      alert(`Nowy klucz odzyskiwania:\n${response.recoveryKey}`);
+    } else {
+      throw new Error(response.error);
+    }
+  } catch (error) {
+    console.error('Regenerate recovery key error:', error);
+    showToast('Nie udało się wygenerować nowego klucza', 'error');
+  } finally {
+    setButtonLoading(button, false);
+    await updateSecurityStatus();
   }
 }
 

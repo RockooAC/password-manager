@@ -223,6 +223,11 @@ textarea {
   gap: 8px;
 }
 
+.recovery-tile .security-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 /* Form actions - KOMPAKTOWE */
 .form-actions {
   display: flex;
